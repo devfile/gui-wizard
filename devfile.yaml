@@ -1,6 +1,6 @@
 schemaVersion: 2.3.0
 metadata:
-  name: devfile-gui-wizard
+  generateName: devfile-gui-wizard
   version: 1.0.0
   displayName: Devfile GUI Wizard
   description: A React + Tailwind web application for creating devfile 2.3.0 YAML files
