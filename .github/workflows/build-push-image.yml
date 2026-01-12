@@ -1,0 +1,75 @@
+name: Build and Push Container Image
+
+on:
+  push:
+    branches:
+      - '**'  # Triggers on push to any branch
+  pull_request:
+    branches:
+      - main
+      - master
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Podman
+        uses: containers/podman-action@v1
+        with:
+          podman-version: latest
+
+      - name: Extract metadata (tags, labels) for container
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Build container image
+        run: |
+          # Build with all tags (tags are newline-separated)
+          TAGS="${{ steps.meta.outputs.tags }}"
+          
+          # Collect all tag arguments
+          TAG_ARGS=""
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              TAG_ARGS="$TAG_ARGS --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$tag"
+            fi
+          done <<< "$TAGS"
+          
+          # Build the image with all tags
+          podman build --file ./Dockerfile $TAG_ARGS .
+
+      - name: Push container image
+        if: github.event_name != 'pull_request'
+        run: |
+          # Push all tags (tags are newline-separated)
+          TAGS="${{ steps.meta.outputs.tags }}"
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              podman push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$tag
+            fi
+          done <<< "$TAGS"
