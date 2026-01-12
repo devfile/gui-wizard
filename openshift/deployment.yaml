@@ -16,8 +16,6 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 101
-        fsGroup: 101
       containers:
       - name: devfile-gui-wizard
         image: ghcr.io/ibuziuk/devfile-gui-wizard:latest
@@ -25,7 +23,6 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
-          runAsUser: 101
           capabilities:
             drop:
               - ALL

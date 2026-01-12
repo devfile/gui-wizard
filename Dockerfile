@@ -26,21 +26,22 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Create nginx cache directories and set permissions for non-root user
+# Create nginx cache directories with world-writable permissions for OpenShift
+# OpenShift will assign a random UID, so we make directories writable by any user
 RUN mkdir -p /var/cache/nginx/client_temp \
     && mkdir -p /var/cache/nginx/proxy_temp \
     && mkdir -p /var/cache/nginx/fastcgi_temp \
     && mkdir -p /var/cache/nginx/uwsgi_temp \
     && mkdir -p /var/cache/nginx/scgi_temp \
-    && chown -R nginx:nginx /var/cache/nginx \
-    && chown -R nginx:nginx /var/log/nginx \
-    && chown -R nginx:nginx /etc/nginx/conf.d \
-    && chown -R nginx:nginx /usr/share/nginx/html \
+    && chmod -R 777 /var/cache/nginx \
+    && chmod -R 777 /var/log/nginx \
+    && chmod -R 755 /etc/nginx/conf.d \
+    && chmod -R 755 /usr/share/nginx/html \
     && touch /var/run/nginx.pid \
-    && chown -R nginx:nginx /var/run/nginx.pid
+    && chmod 777 /var/run/nginx.pid
 
-# Switch to non-root user
-USER nginx
+# Don't set USER - let OpenShift assign the UID
+# OpenShift will enforce runAsNonRoot via security context
 
 # Expose port 8080 (non-root)
 EXPOSE 8080

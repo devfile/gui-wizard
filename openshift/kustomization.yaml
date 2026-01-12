@@ -8,11 +8,14 @@ resources:
   - service.yaml
   - route.yaml
 
-commonLabels:
-  app: devfile-gui-wizard
-  app.kubernetes.io/name: devfile-gui-wizard
-  app.kubernetes.io/component: web
-  app.kubernetes.io/part-of: devfile-gui-wizard
+labels:
+  - includeSelectors: true
+    includeTemplates: true
+    pairs:
+      app: devfile-gui-wizard
+      app.kubernetes.io/name: devfile-gui-wizard
+      app.kubernetes.io/component: web
+      app.kubernetes.io/part-of: devfile-gui-wizard
 
 images:
   - name: ghcr.io/ibuziuk/devfile-gui-wizard
