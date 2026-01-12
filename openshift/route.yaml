@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: devfile-gui-wizard
+  labels:
+    app: devfile-gui-wizard
+spec:
+  to:
+    kind: Service
+    name: devfile-gui-wizard
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

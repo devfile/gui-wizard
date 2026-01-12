@@ -1,0 +1,126 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: devfile-gui-wizard
+  annotations:
+    description: "Devfile GUI Wizard - A React application for creating devfile YAML files"
+    tags: "react,devfile,wizard,nginx"
+labels:
+  app: devfile-gui-wizard
+parameters:
+- name: IMAGE_NAME
+  displayName: "Container Image"
+  description: "The container image to deploy"
+  value: "ghcr.io/REPLACE_WITH_YOUR_USERNAME/devfile-gui-wizard:latest"
+  required: true
+- name: IMAGE_TAG
+  displayName: "Image Tag"
+  description: "The tag of the container image"
+  value: "latest"
+- name: REPLICAS
+  displayName: "Number of Replicas"
+  description: "Number of pod replicas to run"
+  value: "2"
+- name: MEMORY_REQUEST
+  displayName: "Memory Request"
+  description: "Memory request for each pod"
+  value: "64Mi"
+- name: MEMORY_LIMIT
+  displayName: "Memory Limit"
+  description: "Memory limit for each pod"
+  value: "256Mi"
+- name: CPU_REQUEST
+  displayName: "CPU Request"
+  description: "CPU request for each pod"
+  value: "100m"
+- name: CPU_LIMIT
+  displayName: "CPU Limit"
+  description: "CPU limit for each pod"
+  value: "500m"
+- name: ROUTE_HOSTNAME
+  displayName: "Route Hostname"
+  description: "Custom hostname for the route (leave empty for auto-generated)"
+  value: ""
+  required: false
+objects:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: ${IMAGE_NAME}
+    labels:
+      app: devfile-gui-wizard
+  spec:
+    replicas: ${REPLICAS}
+    selector:
+      matchLabels:
+        app: devfile-gui-wizard
+    template:
+      metadata:
+        labels:
+          app: devfile-gui-wizard
+      spec:
+        containers:
+        - name: devfile-gui-wizard
+          image: ${IMAGE_NAME}:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 80
+            protocol: TCP
+          resources:
+            requests:
+              memory: ${MEMORY_REQUEST}
+              cpu: ${CPU_REQUEST}
+            limits:
+              memory: ${MEMORY_LIMIT}
+              cpu: ${CPU_LIMIT}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          env:
+          - name: NODE_ENV
+            value: "production"
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: devfile-gui-wizard
+    labels:
+      app: devfile-gui-wizard
+  spec:
+    type: ClusterIP
+    ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+    selector:
+      app: devfile-gui-wizard
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    name: devfile-gui-wizard
+    labels:
+      app: devfile-gui-wizard
+  spec:
+    host: ${ROUTE_HOSTNAME}
+    to:
+      kind: Service
+      name: devfile-gui-wizard
+      weight: 100
+    port:
+      targetPort: http
+    tls:
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect

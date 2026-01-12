@@ -24,7 +24,6 @@ build
 .env.development.local
 .env.test.local
 .env.production.local
-.env*.local
 
 # Testing
 coverage
@@ -41,6 +40,7 @@ coverage
 *.swp
 *.swo
 *~
+.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
@@ -62,14 +62,15 @@ Desktop.ini
 *.temp
 .cache
 .parcel-cache
-tmp/
-temp/
 
-# Cache directories
+# Optional npm cache directory
 .npm
+
+# Optional eslint cache
 .eslintcache
+
+# Optional stylelint cache
 .stylelintcache
-.vite
 
 # Microbundle cache
 .rpt2_cache/
@@ -86,8 +87,24 @@ temp/
 # Yarn Integrity file
 .yarn-integrity
 
+# dotenv environment variable files
+.env*.local
+
+# Vite
+.vite
+
 # TypeScript
 *.tsbuildinfo
 
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
 # Storybook build outputs
 storybook-static
+
+# Temporary folders
+tmp/
+temp/

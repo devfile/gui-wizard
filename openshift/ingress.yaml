@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devfile-gui-wizard
+  labels:
+    app: devfile-gui-wizard
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: devfile-gui-wizard.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: devfile-gui-wizard
+            port:
+              number: 80
+  # Uncomment below for TLS
+  # tls:
+  # - hosts:
+  #   - devfile-gui-wizard.example.com
+  #   secretName: devfile-gui-wizard-tls
