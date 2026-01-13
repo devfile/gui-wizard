@@ -1,9 +1,12 @@
 import { useWizard } from '../../hooks/useWizardState'
-import { COMPONENT_TYPES } from '../../utils/constants'
+import { COMPONENT_TYPES, ENDPOINT_PROTOCOLS } from '../../utils/constants'
 import FormInput from '../forms/FormInput'
 import FormSelect from '../forms/FormSelect'
 import FormCheckbox from '../forms/FormCheckbox'
+import FormTextarea from '../forms/FormTextarea'
+import FormSection from '../forms/FormSection'
 import ArrayFieldManager from '../forms/ArrayFieldManager'
+import KeyValueArrayManager from '../forms/KeyValueArrayManager'
 import WizardNavigation from '../wizard/WizardNavigation'
 
 export default function ComponentsStep() {
