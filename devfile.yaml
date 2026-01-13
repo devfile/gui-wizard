@@ -70,6 +70,11 @@ commands:
       component: nodejs-dev
       commandLine: kubectl apply -k openshift
       workingDir: ${PROJECT_SOURCE}
+  - id: cleanup
+    exec:
+      component: nodejs-dev
+      commandLine: kubectl delete -k openshift
+      workingDir: ${PROJECT_SOURCE}
 events:
   postStart:
     - install-dependencies
