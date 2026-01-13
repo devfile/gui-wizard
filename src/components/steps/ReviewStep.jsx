@@ -24,10 +24,7 @@ export default function ReviewStep() {
 
   const handleDownload = () => {
     const yamlContent = generateYaml(state.devfileData)
-    const filename = metadata.name
-      ? `${metadata.name}.yaml`
-      : 'devfile.yaml'
-    downloadYamlFile(yamlContent, filename)
+    downloadYamlFile(yamlContent, 'devfile.yaml')
   }
 
   const handleReset = () => {
