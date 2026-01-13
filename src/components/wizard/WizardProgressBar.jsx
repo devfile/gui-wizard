@@ -14,23 +14,6 @@ export default function WizardProgressBar() {
   return (
     <div className="mb-8">
       <div className="flex items-center mb-2 relative" style={{ minHeight: '80px' }}>
-        {/* Connecting lines - positioned absolutely behind circles */}
-        <div className="absolute left-0 right-0 flex items-center justify-between" style={{ top: '1.125rem', height: '4px', paddingLeft: '1.25rem', paddingRight: '1.25rem' }}>
-          {WIZARD_STEPS.map((step, index) => {
-            if (index === WIZARD_STEPS.length - 1) return null
-            const isCompleted = state.completedSteps.includes(index)
-            return (
-              <div
-                key={`line-${step.id}`}
-                className={`h-1 ${
-                  isCompleted ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
-                style={{ flex: '1 1 0' }}
-              />
-            )
-          })}
-        </div>
-        
         {/* Step circles */}
         <div className="flex items-center justify-between w-full relative z-10">
           {WIZARD_STEPS.map((step, index) => {
@@ -39,9 +22,30 @@ export default function WizardProgressBar() {
             const isClickable = isCompleted || isCurrent
 
             return (
-              <div key={step.id} className="flex flex-col items-center">
+              <div key={step.id} className="flex flex-col items-center relative flex-1">
+                {/* Connecting line - extends from center of this circle to center of next circle */}
+                {index < WIZARD_STEPS.length - 1 && (
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: '50%',
+                      top: '1.25rem',
+                      right: index === WIZARD_STEPS.length - 2 ? 'calc(-50% - 1.25rem)' : 'calc(-50% - 1.25rem)',
+                      height: '1px',
+                      transform: 'translateY(-0.5px)',
+                      marginLeft: '1.25rem',
+                      zIndex: 0
+                    }}
+                  >
+                    <div
+                      className={`h-1 w-full ${
+                        isCompleted ? 'bg-blue-600' : 'bg-gray-300'
+                      }`}
+                    />
+                  </div>
+                )}
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium
+                  className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium relative z-10
                     ${isCurrent
                       ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                       : isCompleted
