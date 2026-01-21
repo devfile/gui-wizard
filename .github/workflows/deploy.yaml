@@ -1,0 +1,24 @@
+name: Build and Deploy
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      ## TODO: Add site build and export steps here, target public/ for export directory
+
+      - name: Copy CNAME
+        run: cp CNAME public
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
+        with:
+          branch: github-pages
+          folder: public
+          repository-name: devfile/gui-wizard
+          clean: true
