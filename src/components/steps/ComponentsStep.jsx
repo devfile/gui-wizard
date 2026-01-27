@@ -13,19 +13,43 @@ export default function ComponentsStep() {
   const { state, dispatch, actions } = useWizard()
   const components = state.devfileData.components
 
-  const createNewComponent = () => ({
-    name: '',
-    type: 'container',
-    container: {
-      image: '',
-      mountSources: true,
-      memoryLimit: '',
-      cpuLimit: ''
-    },
-    volume: {
-      size: ''
+  // Helper to determine component type from the property that exists
+  const getComponentType = (component) => {
+    if (component.container) return 'container'
+    if (component.volume) return 'volume'
+    if (component.kubernetes) return 'kubernetes'
+    if (component.openshift) return 'openshift'
+    if (component.image) return 'image'
+    return 'container' // default
+  }
+
+  const createNewComponent = (type = 'container') => {
+    const component = { name: '' }
+
+    switch (type) {
+      case 'container':
+        component.container = {
+          image: '',
+          mountSources: true,
+          memoryLimit: '',
+          cpuLimit: ''
+        }
+        break
+      case 'volume':
+        component.volume = {
+          size: ''
+        }
+        break
+      // Add other types as needed
+      default:
+        component.container = {
+          image: '',
+          mountSources: true
+        }
     }
-  })
+
+    return component
+  }
 
   const handleAddComponent = () => {
     dispatch({
@@ -45,8 +69,11 @@ export default function ComponentsStep() {
     const component = components[index]
     let updates = {}
 
-    if (field === 'type') {
-      updates = { type: value }
+    if (field === 'componentType') {
+      // When changing type, replace the entire component structure
+      const newComponent = createNewComponent(value)
+      newComponent.name = component.name // preserve the name
+      updates = newComponent
     } else if (field === 'name') {
       updates = { name: value }
     } else if (field.startsWith('container.')) {
@@ -74,6 +101,8 @@ export default function ComponentsStep() {
   }
 
   const renderComponentItem = (component, index, updateField) => {
+    const componentType = getComponentType(component)
+
     return (
       <div className="space-y-4">
         <FormInput
@@ -88,12 +117,12 @@ export default function ComponentsStep() {
         <FormSelect
           name={`component-type-${index}`}
           label="Component Type"
-          value={component.type || 'container'}
-          onChange={(e) => updateField('type', e.target.value)}
+          value={componentType}
+          onChange={(e) => updateField('componentType', e.target.value)}
           options={COMPONENT_TYPES}
         />
 
-        {component.type === 'container' && (
+        {componentType === 'container' && (
           <>
             <FormInput
               name={`component-image-${index}`}
@@ -133,7 +162,7 @@ export default function ComponentsStep() {
           </>
         )}
 
-        {component.type === 'volume' && (
+        {componentType === 'volume' && (
           <FormInput
             name={`component-size-${index}`}
             label="Volume Size"
