@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devfile-gui-wizard
+  labels:
+    app: devfile-gui-wizard
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devfile-gui-wizard
+  template:
+    metadata:
+      labels:
+        app: devfile-gui-wizard
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - name: devfile-gui-wizard
+        image: ghcr.io/ibuziuk/devfile-gui-wizard:latest
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+              - ALL
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        env:
+        - name: NODE_ENV
+          value: "production"

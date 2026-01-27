@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: devfile-gui-wizard
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
+
+labels:
+  - includeSelectors: true
+    includeTemplates: true
+    pairs:
+      app: devfile-gui-wizard
+      app.kubernetes.io/name: devfile-gui-wizard
+      app.kubernetes.io/component: web
+      app.kubernetes.io/part-of: devfile-gui-wizard
+
+images:
+  - name: ghcr.io/ibuziuk/devfile-gui-wizard
+    newName: ghcr.io/ibuziuk/devfile-gui-wizard
+    newTag: latest
+
+replicas:
+  - name: devfile-gui-wizard
+    count: 2
