@@ -72,6 +72,38 @@ The Devfile GUI Wizard simplifies the process of creating devfile YAML configura
 | `npm run dev` | Start development server (with hot reload) |
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build locally |
+| `npm test` | Run end-to-end tests with Playwright |
+| `npm run test:ui` | Run tests in interactive UI mode |
+| `npm run test:debug` | Run tests in debug mode |
+
+## Testing
+
+The project includes end-to-end tests using [Playwright](https://playwright.dev/) to verify the wizard functionality and devfile generation.
+
+### Running Tests
+
+1. **First time setup** - Install Playwright browsers:
+   ```bash
+   npx playwright install
+   ```
+
+2. **Run tests**:
+   ```bash
+   npm test
+   ```
+
+3. **Interactive mode** (see tests run in real-time):
+   ```bash
+   npm run test:ui
+   ```
+
+### Test Coverage
+
+The test suite includes:
+- **Quarkus Devfile Generation** - Generates a simplified version of the [Quarkus API Example devfile](https://github.com/che-incubator/quarkus-api-example/blob/main/devfile.yaml)
+- **Schema Compliance** - Verifies generated devfiles comply with Devfile 2.3.0 specification
+
+See [`tests/README.md`](tests/README.md) for detailed testing documentation.
 
 ## OpenShift Deployment
 

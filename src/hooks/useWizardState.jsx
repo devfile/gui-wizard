@@ -149,11 +149,27 @@ function wizardReducer(state, action) {
         ...state,
         devfileData: {
           ...state.devfileData,
-          components: state.devfileData.components.map((component, index) =>
-            index === action.payload.index
-              ? { ...component, ...action.payload.data }
-              : component
-          )
+          components: state.devfileData.components.map((component, index) => {
+            if (index !== action.payload.index) {
+              return component
+            }
+
+            // If the update contains a type-specific property (container, volume, etc.),
+            // it's a full replacement (e.g., changing component type)
+            const isFullReplacement = ['container', 'volume', 'kubernetes', 'openshift', 'image']
+              .some(key => key in action.payload.data)
+
+            if (isFullReplacement) {
+              // Full replacement: use only the new data, preserving the name if it exists
+              return {
+                name: component.name,
+                ...action.payload.data
+              }
+            }
+
+            // Partial update: merge with existing component
+            return { ...component, ...action.payload.data }
+          })
         }
       }
 
@@ -180,11 +196,27 @@ function wizardReducer(state, action) {
         ...state,
         devfileData: {
           ...state.devfileData,
-          commands: state.devfileData.commands.map((command, index) =>
-            index === action.payload.index
-              ? { ...command, ...action.payload.data }
-              : command
-          )
+          commands: state.devfileData.commands.map((command, index) => {
+            if (index !== action.payload.index) {
+              return command
+            }
+
+            // If the update contains a type-specific property (exec, apply, composite),
+            // it's a full replacement (e.g., changing command type)
+            const isFullReplacement = ['exec', 'apply', 'composite']
+              .some(key => key in action.payload.data)
+
+            if (isFullReplacement) {
+              // Full replacement: use only the new data, preserving the id if it exists
+              return {
+                id: command.id,
+                ...action.payload.data
+              }
+            }
+
+            // Partial update: merge with existing command
+            return { ...command, ...action.payload.data }
+          })
         }
       }
 
