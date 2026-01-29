@@ -40,14 +40,14 @@ commands:
     exec:
       component: nodejs-dev
       commandLine: npm install
-      workingDir: /projects/devfile-gui-wizard
+      workingDir: ${PROJECT_SOURCE}
       group:
         kind: build
   - id: start-dev-server
     exec:
       component: nodejs-dev
       commandLine: npm run dev
-      workingDir: /projects/devfile-gui-wizard
+      workingDir: ${PROJECT_SOURCE}
       group:
         kind: run
         isDefault: true
@@ -55,14 +55,14 @@ commands:
     exec:
       component: nodejs-dev
       commandLine: npm run build
-      workingDir: /projects/devfile-gui-wizard
+      workingDir: ${PROJECT_SOURCE}
       group:
         kind: build
   - id: preview-build
     exec:
       component: nodejs-dev
       commandLine: npm run preview
-      workingDir: /projects/devfile-gui-wizard
+      workingDir: ${PROJECT_SOURCE}
       group:
         kind: run
   - id: deploy
