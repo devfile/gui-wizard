@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .wizard-step {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  .yaml-preview {
+    @apply font-mono text-sm bg-gray-900 text-gray-100 p-4 rounded-lg overflow-auto;
+  }
+}

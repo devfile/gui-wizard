@@ -1,0 +1,80 @@
+schemaVersion: 2.3.0
+metadata:
+  generateName: devfile-gui-wizard
+  version: 1.0.0
+  displayName: Devfile GUI Wizard
+  description: A React + Tailwind web application for creating devfile 2.3.0 YAML files
+  language: JavaScript
+  projectType: application
+  provider: Devfile Community
+  tags:
+    - devfile
+    - wizard
+    - react
+    - tailwind
+    - yaml-generator
+  website: https://devfile.io
+attributes:
+  controller.devfile.io/storage-type: ephemeral
+components:
+  - name: nodejs-dev
+    container:
+      image: quay.io/devfile/universal-developer-image:ubi10-latest
+      mountSources: true
+      sourceMapping: /projects
+      endpoints:
+        - name: dev-server
+          targetPort: 5173
+          protocol: http
+          exposure: public
+      env:
+        - name: NODE_ENV
+          value: development
+      memoryLimit: 2Gi
+      cpuLimit: 1000m
+  - name: node-modules
+    volume:
+      size: 1Gi
+commands:
+  - id: install-dependencies
+    exec:
+      component: nodejs-dev
+      commandLine: npm install
+      workingDir: ${PROJECT_SOURCE}
+      group:
+        kind: build
+  - id: start-dev-server
+    exec:
+      component: nodejs-dev
+      commandLine: npm run dev
+      workingDir: ${PROJECT_SOURCE}
+      group:
+        kind: run
+        isDefault: true
+  - id: build-production
+    exec:
+      component: nodejs-dev
+      commandLine: npm run build
+      workingDir: ${PROJECT_SOURCE}
+      group:
+        kind: build
+  - id: preview-build
+    exec:
+      component: nodejs-dev
+      commandLine: npm run preview
+      workingDir: ${PROJECT_SOURCE}
+      group:
+        kind: run
+  - id: deploy
+    exec:
+      component: nodejs-dev
+      commandLine: kubectl apply -k openshift
+      workingDir: ${PROJECT_SOURCE}
+  - id: cleanup
+    exec:
+      component: nodejs-dev
+      commandLine: kubectl delete -k openshift
+      workingDir: ${PROJECT_SOURCE}
+events:
+  postStart:
+    - install-dependencies
