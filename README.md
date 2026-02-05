@@ -264,16 +264,6 @@ This wizard supports all major devfile 2.3.0 features:
 - **Events**: preStart, postStart, preStop, postStop
 - **Variables**: String substitution with `{{variable}}` syntax
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ## Resources
 
 - [Devfile Official Documentation](https://devfile.io/docs/)
@@ -298,5 +288,7 @@ This project is open source and available under the [Apache License Version 2.0]
 ## 📞 Community Support
 
 For issues and questions use the main Devfile [issue tracker](https://github.com/devfile/api/issues)
+
+Contributions are most welcome!
 
 **Made with ❤️ for the Devfile community**
