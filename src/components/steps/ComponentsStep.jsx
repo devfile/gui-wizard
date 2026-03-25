@@ -129,7 +129,7 @@ export default function ComponentsStep() {
               label="Container Image"
               value={component.container?.image || ''}
               onChange={(e) => updateField('container.image', e.target.value)}
-              placeholder="docker.io/library/node:18"
+              placeholder="quay.io/devfile/base-developer-image:ubi10-latest"
               required
               helpText="Full container image reference"
             />
