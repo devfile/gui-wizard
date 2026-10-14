@@ -6,7 +6,7 @@ export default function FormSelect({
   options,
   error,
   required = false,
-  placeholder = 'Select an option',
+  placeholder,
   helpText
 }) {
   return (
@@ -18,7 +18,7 @@ export default function FormSelect({
       <select
         id={name}
         name={name}
-        value={value}
+        value={value ?? ''}
         onChange={onChange}
         className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm
           ${error
@@ -27,7 +27,8 @@ export default function FormSelect({
           }
         `}
       >
-        <option value="">{placeholder}</option>
+        {/* The empty option is only rendered when the field can legitimately be left blank. */}
+        {placeholder !== undefined && <option value="">{placeholder}</option>}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

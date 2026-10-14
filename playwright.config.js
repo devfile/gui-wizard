@@ -14,7 +14,14 @@ export default defineConfig({
 
   projects: [
     {
+      // Serializer, validator and schema compliance tests. These run in node
+      // and need no browser.
+      name: 'unit',
+      testDir: './tests/unit',
+    },
+    {
       name: 'chromium',
+      testDir: './tests/e2e',
       use: { ...devices['Desktop Chrome'] },
     },
   ],

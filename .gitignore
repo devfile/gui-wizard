@@ -17,6 +17,8 @@ dist
 dist-ssr
 build
 *.local
+# vite builds into public/ (see vite.config.js), which is what gets deployed
+public
 
 # Environment variables
 .env
@@ -29,6 +31,10 @@ build
 coverage
 .nyc_output
 *.lcov
+test-results
+playwright-report
+blob-report
+.playwright-mcp
 
 # Editor directories and files
 .vscode/*

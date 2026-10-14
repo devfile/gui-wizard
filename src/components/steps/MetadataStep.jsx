@@ -1,75 +1,66 @@
-import { useState, useEffect } from 'react'
 import { useWizard } from '../../hooks/useWizardState'
-import { validateMetadata } from '../../utils/validation'
-import { LANGUAGES, PROJECT_TYPES } from '../../utils/constants'
+import {
+  ARCHITECTURES,
+  DEVFILE_SCHEMA_VERSION,
+  LANGUAGE_SUGGESTIONS,
+  PROJECT_TYPE_SUGGESTIONS
+} from '../../utils/constants'
+import AttributesEditor from '../forms/AttributesEditor'
+import CheckboxGroup from '../forms/CheckboxGroup'
+import CollapsibleSection from '../forms/CollapsibleSection'
 import FormInput from '../forms/FormInput'
-import FormTextarea from '../forms/FormTextarea'
-import FormSelect from '../forms/FormSelect'
 import FormSection from '../forms/FormSection'
+import FormTextarea from '../forms/FormTextarea'
+import StringListManager from '../forms/StringListManager'
+import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
-import Alert from '../common/Alert'
+
+const ISSUE_PREFIXES = ['Metadata', 'Schema version', 'Devfile attributes']
 
 export default function MetadataStep() {
   const { state, dispatch, actions } = useWizard()
-  const [errors, setErrors] = useState({})
-  const [tags, setTags] = useState(state.devfileData.metadata.tags?.join(', ') || '')
-
   const metadata = state.devfileData.metadata
 
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    dispatch({
-      type: actions.UPDATE_METADATA,
-      payload: { [name]: value }
-    })
-  }
+  const updateMetadata = (payload) => dispatch({ type: actions.UPDATE_METADATA, payload })
+  const handleChange = (event) => updateMetadata({ [event.target.name]: event.target.value })
 
-  const handleTagsChange = (e) => {
-    const value = e.target.value
-    setTags(value)
-    const tagsArray = value.split(',').map(t => t.trim()).filter(Boolean)
-    dispatch({
-      type: actions.UPDATE_METADATA,
-      payload: { tags: tagsArray }
-    })
-  }
-
-  const handleNext = () => {
-    const validationErrors = validateMetadata(metadata)
-    setErrors(validationErrors)
-
-    if (Object.keys(validationErrors).length > 0) {
-      return false
-    }
-
-    return true
-  }
-
-  const canProceed = metadata.name && metadata.name.trim() !== ''
+  const canProceed = Boolean(metadata.name?.trim() || metadata.generateName?.trim())
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-2">Basic Information</h2>
       <p className="text-gray-600 mb-6">
-        Enter the basic metadata for your devfile. The name field is required.
+        Metadata describing the devfile. Everything is optional for the schema, but a name is needed to identify the
+        workspace.
       </p>
 
-      {Object.keys(errors).length > 0 && (
-        <Alert type="error" title="Validation Errors">
-          Please fix the errors below before continuing.
-        </Alert>
-      )}
+      {/* The missing name is already shown by the field itself, so warnings
+          only start once the devfile is named. */}
+      <StepIssues prefixes={ISSUE_PREFIXES} showWarnings={canProceed} />
 
-      <FormSection title="Required Information">
+      <FormSection title="Identity">
+        <p className="text-sm text-gray-500 mb-4">
+          Schema version <code className="bg-gray-100 px-1.5 py-0.5 rounded">{DEVFILE_SCHEMA_VERSION}</code>
+        </p>
+
         <FormInput
           name="name"
           label="Name"
           value={metadata.name}
           onChange={handleChange}
-          error={errors.name}
           required
+          maxLength={63}
           placeholder="my-project"
-          helpText="Lowercase alphanumeric with hyphens only (max 63 chars)"
+          helpText="Lowercase alphanumeric with dashes, max 63 characters"
+        />
+
+        <FormInput
+          name="generateName"
+          label="Generate Name"
+          value={metadata.generateName}
+          onChange={handleChange}
+          placeholder="my-project-"
+          helpText="Prefix used to generate a unique workspace name. Mutually exclusive with the name above."
         />
 
         <FormInput
@@ -78,18 +69,18 @@ export default function MetadataStep() {
           value={metadata.version}
           onChange={handleChange}
           placeholder="1.0.0"
-          helpText="Semantic version of your project"
+          helpText="Semantic version of the devfile stack"
         />
       </FormSection>
 
-      <FormSection title="Optional Information">
+      <FormSection title="Description">
         <FormInput
           name="displayName"
           label="Display Name"
           value={metadata.displayName}
           onChange={handleChange}
           placeholder="My Awesome Project"
-          helpText="Human-readable name"
+          helpText="Human readable name shown in the IDE and registries"
         />
 
         <FormTextarea
@@ -97,66 +88,120 @@ export default function MetadataStep() {
           label="Description"
           value={metadata.description}
           onChange={handleChange}
-          placeholder="A brief description of your project"
+          placeholder="A brief description of the stack"
           rows={3}
         />
 
-        <FormSelect
-          name="language"
-          label="Primary Language"
-          value={metadata.language}
+        <FormInput
+          name="icon"
+          label="Icon"
+          value={metadata.icon}
           onChange={handleChange}
-          options={LANGUAGES}
+          placeholder="https://example.com/icon.png"
+          helpText="URL of the icon shown in registries"
         />
 
-        <FormSelect
-          name="projectType"
-          label="Project Type"
-          value={metadata.projectType}
-          onChange={handleChange}
-          options={PROJECT_TYPES}
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormInput
+            name="language"
+            label="Language"
+            value={metadata.language}
+            onChange={handleChange}
+            placeholder="Java"
+            suggestions={LANGUAGE_SUGGESTIONS}
+            helpText="Primary language of the project"
+          />
+
+          <FormInput
+            name="projectType"
+            label="Project Type"
+            value={metadata.projectType}
+            onChange={handleChange}
+            placeholder="quarkus"
+            suggestions={PROJECT_TYPE_SUGGESTIONS}
+            helpText="Framework or runtime of the project"
+          />
+        </div>
 
         <FormInput
           name="provider"
           label="Provider"
           value={metadata.provider}
           onChange={handleChange}
-          placeholder="Organization or Author"
-          helpText="The organization or individual providing this devfile"
+          placeholder="Red Hat"
+          helpText="Organization or individual providing the devfile"
         />
 
-        <FormInput
-          name="tags"
+        <StringListManager
+          name="metadata-tags"
           label="Tags"
-          value={tags}
-          onChange={handleTagsChange}
-          placeholder="web, api, backend"
-          helpText="Comma-separated tags for categorization"
+          items={metadata.tags || []}
+          onChange={(tags) => updateMetadata({ tags })}
+          placeholder="Java"
+          addButtonText="Add Tag"
+          emptyMessage="No tags added."
+          helpText="Keywords used to find the stack in a registry"
         />
 
-        <FormInput
-          name="website"
-          label="Website"
-          type="url"
-          value={metadata.website}
-          onChange={handleChange}
-          error={errors.website}
-          placeholder="https://example.com"
-        />
-
-        <FormInput
-          name="supportUrl"
-          label="Support URL"
-          type="url"
-          value={metadata.supportUrl}
-          onChange={handleChange}
-          error={errors.supportUrl}
-          placeholder="https://example.com/support"
+        <CheckboxGroup
+          name="metadata-architectures"
+          label="Architectures"
+          options={ARCHITECTURES}
+          selected={metadata.architectures || []}
+          onChange={(architectures) => updateMetadata({ architectures })}
+          helpText="CPU architectures the stack supports. All of them when left empty."
         />
       </FormSection>
 
-      <WizardNavigation onNext={handleNext} canProceed={canProceed} />
+      <FormSection title="Links and limits">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormInput
+            name="website"
+            label="Website"
+            value={metadata.website}
+            onChange={handleChange}
+            placeholder="https://example.com"
+          />
+
+          <FormInput
+            name="supportUrl"
+            label="Support URL"
+            value={metadata.supportUrl}
+            onChange={handleChange}
+            placeholder="https://example.com/support"
+          />
+        </div>
+
+        <FormInput
+          name="globalMemoryLimit"
+          label="Global Memory Limit"
+          value={metadata.globalMemoryLimit}
+          onChange={handleChange}
+          placeholder="2674Mi"
+          helpText="Memory limit applied to the whole workspace"
+        />
+      </FormSection>
+
+      <CollapsibleSection title="Metadata attributes" description="Free-form attributes attached to the metadata">
+        <AttributesEditor
+          name="metadata-attributes"
+          value={metadata.attributes || ''}
+          onChange={(text) => updateMetadata({ attributes: text })}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Devfile attributes" description="Free-form attributes attached to the devfile itself">
+        <AttributesEditor
+          name="devfile-attributes"
+          value={state.devfileData.attributes || ''}
+          onChange={(text) =>
+            dispatch({ type: actions.SET_SECTION, payload: { section: 'attributes', value: text } })
+          }
+          helpText="For example controller.devfile.io/storage-type or che-theia plugin settings."
+        />
+      </CollapsibleSection>
+
+      <WizardNavigation canProceed={canProceed} />
     </div>
   )
 }

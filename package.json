@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "playwright test",
+    "test:unit": "playwright test --project=unit",
+    "test:e2e": "playwright test --project=chromium",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug"
   },
@@ -20,6 +22,7 @@
     "@playwright/test": "^1.58.0",
     "@tailwindcss/forms": "^0.5.7",
     "@vitejs/plugin-react": "^4.3.0",
+    "ajv": "^8.20.0",
     "autoprefixer": "^10.4.0",
     "playwright": "^1.58.0",
     "postcss": "^8.4.0",

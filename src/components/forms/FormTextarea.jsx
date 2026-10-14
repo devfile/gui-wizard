@@ -7,7 +7,8 @@ export default function FormTextarea({
   required = false,
   placeholder = '',
   rows = 4,
-  helpText
+  helpText,
+  monospace = false
 }) {
   return (
     <div className="mb-4">
@@ -18,11 +19,13 @@ export default function FormTextarea({
       <textarea
         id={name}
         name={name}
-        value={value}
+        value={value ?? ''}
         onChange={onChange}
         placeholder={placeholder}
         rows={rows}
+        spellCheck={monospace ? false : undefined}
         className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm
+          ${monospace ? 'font-mono' : ''}
           ${error
             ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500'
             : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
