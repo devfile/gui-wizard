@@ -221,6 +221,26 @@ test.describe('validation', () => {
     await expect(page.getByRole('button', { name: 'Download devfile.yaml' })).toBeEnabled()
   })
 
+  test('a map entry that would be dropped is reported on its step', async ({ page }) => {
+    await page.goto('/')
+    await page.fill('input[name="name"]', 'sample')
+
+    await goToStep(page, 'Variables')
+    await page.getByRole('button', { name: 'Add Variable' }).click()
+    await page.fill('input[name="variable-value-0"]', '1.0.0')
+
+    const errors = page.getByTestId('step-errors')
+    await expect(errors).toContainText('a variable has a value but no name')
+
+    await page.fill('input[name="variable-key-0"]', 'VERSION')
+    await expect(errors).toBeHidden()
+    expect((await readYaml(page)).variables).toEqual({ VERSION: '1.0.0' })
+
+    await page.getByRole('button', { name: 'Add Variable' }).click()
+    await page.fill('input[name="variable-key-1"]', 'VERSION')
+    await expect(errors).toContainText('duplicate variable "VERSION"')
+  })
+
   test('the wizard can be reset', async ({ page }) => {
     await page.goto('/')
     await page.fill('input[name="name"]', 'sample')

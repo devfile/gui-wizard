@@ -88,7 +88,9 @@ On top of the schema, the wizard applies the
 [devfile/api validation rules](https://github.com/devfile/api/blob/main/pkg/validation/validation-rule.md):
 
 - names and ids are unique, lowercase alphanumeric with dashes, and at most 63 characters
-  (15 for endpoint names)
+  (15 for endpoint names). This includes the name of a volume mount, in a parent override too
+- the values the schema restricts to a list — endpoint `protocol` and `exposure`, command group
+  `kind`, `metadata.architectures` — are checked even though the UI only offers valid ones
 - endpoint names are unique across all components and two containers cannot expose the same
   `targetPort` unless one of them runs in a dedicated pod
 - `memoryRequest`/`cpuRequest` cannot exceed `memoryLimit`/`cpuLimit`, and all quantities must parse
@@ -99,6 +101,17 @@ On top of the schema, the wizard applies the
 - a command group has at most one default command
 - `preStart` and `postStop` events only accept apply commands, `postStart` and `preStop` only exec
   commands (or composites made of them)
-- a git source needs at least one remote, and a `checkoutFrom.remote` as soon as it has several
+- a git source needs at least one remote, every remote needs a URL, and a `checkoutFrom.remote` as
+  soon as there are several
+- an inlined `kubernetes`/`openshift` manifest parses as YAML (one or several documents)
+- an event does not bind the same command twice
+
+The wizard also reports what serialization would drop without a word, since these are editable
+lists in the UI but plain maps in the devfile:
+
+- two entries of the same map (`variables`, `git.remotes`, annotations) cannot share a name, the
+  second would overwrite the first
+- an entry with a value but no name (a variable, a remote, an annotation, an environment variable
+  or a volume mount) never reaches the generated devfile
 
 Errors block the download, warnings do not.
