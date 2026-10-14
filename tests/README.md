@@ -1,6 +1,11 @@
 # Devfile GUI Wizard - Tests
 
-This directory contains end-to-end tests for the Devfile GUI Wizard using Playwright.
+The suite runs on [Playwright](https://playwright.dev/) and has two projects:
+
+| Project | Directory | What it covers |
+|---|---|---|
+| `unit` | `tests/unit` | The devfile serializer and validator, and compliance with the devfile 2.3.0 JSON schema. Runs in node, no browser needed. |
+| `chromium` | `tests/e2e` | The wizard itself, driven through the browser. |
 
 ## Running Tests
 
@@ -11,7 +16,7 @@ This directory contains end-to-end tests for the Devfile GUI Wizard using Playwr
    npm install
    ```
 
-2. Install Playwright browsers (first time only):
+2. Install Playwright browsers (first time only, for the e2e project):
    ```bash
    npx playwright install
    ```
@@ -19,86 +24,85 @@ This directory contains end-to-end tests for the Devfile GUI Wizard using Playwr
 ### Run Tests
 
 ```bash
-# Run all tests in headless mode
+# Everything
 npm test
 
-# Run tests in UI mode (interactive)
+# Serializer, validator and schema compliance only
+npm run test:unit
+
+# Browser tests only
+npm run test:e2e
+
+# Interactive UI mode
 npm run test:ui
 
-# Run tests in debug mode
-npm run test:debug
-
-# Run specific test file
-npx playwright test quarkus-devfile.spec.js
-
-# Run tests in headed mode (see the browser)
-npx playwright test --headed
+# A single file
+npx playwright test tests/unit/devfile-validation.spec.js
 ```
 
 ## Test Files
 
-### `quarkus-devfile.spec.js`
+### `tests/unit/schema-coverage.spec.js`
 
-Tests the generation of a Quarkus-like devfile through the wizard interface.
+Checks the wizard against the published devfile 2.3.0 JSON schema, vendored in
+`tests/schema/devfile-2.3.0.json` so the suite stays offline and pinned:
 
-**Test 1: Quarkus-like devfile generation**
-- Creates a simplified version of the [Quarkus API Example devfile](https://github.com/che-incubator/quarkus-api-example/blob/main/devfile.yaml)
-- Verifies:
-  - Schema version is 2.3.0
-  - Metadata is correctly set
-  - Components (tools container, postgresql container, m2 volume)
-  - Commands (package, startdev)
-  - Events (postStart: package)
-  - Schema compliance (no `type` field in components, no `kind` field in commands)
+- every devfile the wizard can generate is accepted by the schema (validated with ajv),
+- **every field of the schema can be generated** — the test walks the schema and fails when one of
+  its fields never appears in the generated devfiles,
+- the wizard never emits a field the schema does not define,
+- a devfile rejected by the wizard's own validator is also rejected by the schema.
 
-**Test 2: Schema compliance**
-- Verifies that minimal devfiles comply with Devfile 2.3.0 specification
-- Ensures no deprecated fields are present in the generated YAML
+The maximal devfiles it uses live in `tests/unit/fixtures/devfile-states.js`. When the wizard gains
+support for a new field, add it there.
 
-## Current Limitations
+### `tests/unit/devfile-generator.spec.js`
 
-The test generates a simplified version of the Quarkus devfile because the following features are not yet implemented in the UI:
+Serialization rules: blank values are dropped, strings trimmed, maps built from the wizard's
+key/value lists, booleans that default to `false` only emitted when `true`, tri-state booleans kept
+inside parent overrides, free-form `attributes` parsed from YAML, and the YAML output parsing back
+into the same object.
 
-### Not Yet Supported:
-- `generateName` (uses `name` instead)
-- Component features:
-  - Environment variables (`env`)
-  - Endpoints
-  - Volume mounts (`volumeMounts`)
-  - Resource requests (`memoryRequest`, `cpuRequest`)
-- Command features:
-  - Labels
-  - Groups (`group.kind`, `group.isDefault`)
-- Root-level attributes
+### `tests/unit/devfile-validation.spec.js`
 
-These features will be added in future enhancements to match the full Quarkus devfile specification.
+One test per validation rule: metadata, projects, components, commands, events, parent and parent
+overrides, including which problems are errors and which are only warnings.
 
-## Test Output
+### `tests/e2e/quarkus-devfile.spec.js`
 
-When tests run successfully, you'll see:
-- ✅ Test passed indicators
-- Generated YAML output in the console
-- Detailed test reports in `playwright-report/` directory
+Rebuilds the [Quarkus API Example devfile](https://github.com/che-incubator/quarkus-api-example/blob/main/devfile.yaml)
+through the UI — `generateName`, devfile attributes, container env, endpoints, volume mounts,
+resource requests and limits, command labels and groups, and the `postStart` event — then compares
+the generated YAML with the expected devfile. A second test downloads the file and parses it.
+
+### `tests/e2e/full-coverage.spec.js`
+
+Walks the sections the Quarkus example does not use: the parent step, the three project lists, all
+five component types, all three command types and variables. It also covers the validation
+feedback: errors are shown on their step and disable the download, warnings do not.
+
+## Updating the schema
+
+The vendored schema comes from the devfile project:
+
+```bash
+curl -o tests/schema/devfile-2.3.0.json https://devfile.io/devfile-schemas/2.3.0.json
+```
 
 ## Debugging Tests
 
-To debug a failing test:
+```bash
+# Playwright inspector
+npm run test:debug
 
-1. Run in debug mode:
-   ```bash
-   npm run test:debug
-   ```
+# Watch the browser
+npx playwright test --project=chromium --headed
 
-2. Or use the Playwright Inspector:
-   ```bash
-   npx playwright test --debug
-   ```
+# Open the last report
+npx playwright show-report
+```
 
-3. View the test report:
-   ```bash
-   npx playwright show-report
-   ```
+## CI
 
-## CI/CD
-
-Tests are configured to run in CI environments. The configuration in `playwright.config.js` automatically detects CI environments and adjusts behavior accordingly (e.g., retries, parallel execution).
+`.github/workflows/test.yaml` builds the app and runs the whole suite on every push to `main` and
+on every pull request, and uploads the Playwright report as an artifact.

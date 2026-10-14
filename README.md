@@ -16,9 +16,10 @@ The Devfile GUI Wizard simplifies the process of creating devfile YAML configura
 
 ## Features
 
-- ✨ **7-Step Wizard Interface** - Guided workflow through all devfile sections
+- ✨ **8-Step Wizard Interface** - Guided workflow through all devfile sections
+- 🧩 **Complete Devfile 2.3.0 Support** - Every field of the schema, including parent overrides
 - 🎯 **Real-time YAML Preview** - See your devfile generated as you type
-- ✅ **Built-in Validation** - Ensures devfile 2.3.0 compliance
+- ✅ **Built-in Validation** - Schema compliance plus the devfile/api validation rules, reported per step
 - 📥 **One-Click Download** - Export your devfile.yaml instantly
 - 📋 **Copy to Clipboard** - Quick copy functionality
 - 🎨 **Responsive Design** - Works on desktop, tablet, and mobile
@@ -29,13 +30,14 @@ The Devfile GUI Wizard simplifies the process of creating devfile YAML configura
 
 ## Wizard Steps
 
-1. **Basic Information** - Project metadata (name, version, description, language)
-2. **Projects** - Source code repositories (Git or Zip)
-3. **Components** - Development environment containers, volumes, resources
-4. **Commands** - Build, run, test, and debug commands
-5. **Events** - Lifecycle event bindings (preStart, postStart, etc.)
-6. **Variables** - Key-value pairs for substitution
-7. **Review & Download** - Summary view with download functionality
+1. **Basic Information** - Metadata (name, version, description, language, tags, architectures, ...) and devfile attributes
+2. **Parent** - Inherit from a parent devfile by URI, registry id or DevWorkspaceTemplate, and override any part of it
+3. **Projects** - Projects, starter projects and dependent projects, from Git or Zip sources
+4. **Components** - Containers, volumes, Kubernetes and OpenShift resources, and image builds
+5. **Commands** - Exec, apply and composite commands, with groups and labels
+6. **Events** - Lifecycle event bindings (preStart, postStart, preStop, postStop)
+7. **Variables** - Key-value pairs for substitution
+8. **Review & Download** - Summary, validation report and download
 
 ## Getting Started
 
@@ -72,13 +74,16 @@ The Devfile GUI Wizard simplifies the process of creating devfile YAML configura
 | `npm run dev` | Start development server (with hot reload) |
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build locally |
-| `npm test` | Run end-to-end tests with Playwright |
+| `npm test` | Run the whole test suite with Playwright |
+| `npm run test:unit` | Run the serializer, validator and schema compliance tests |
+| `npm run test:e2e` | Run the browser tests |
 | `npm run test:ui` | Run tests in interactive UI mode |
 | `npm run test:debug` | Run tests in debug mode |
 
 ## Testing
 
-The project includes end-to-end tests using [Playwright](https://playwright.dev/) to verify the wizard functionality and devfile generation.
+The project uses [Playwright](https://playwright.dev/) both for unit tests of the devfile
+serializer and validator, and for end-to-end tests of the wizard.
 
 ### Running Tests
 
@@ -100,8 +105,12 @@ The project includes end-to-end tests using [Playwright](https://playwright.dev/
 ### Test Coverage
 
 The test suite includes:
-- **Quarkus Devfile Generation** - Generates a simplified version of the [Quarkus API Example devfile](https://github.com/che-incubator/quarkus-api-example/blob/main/devfile.yaml)
-- **Schema Compliance** - Verifies generated devfiles comply with Devfile 2.3.0 specification
+- **Schema Compliance** - Generated devfiles are validated against the published devfile 2.3.0 JSON
+  schema, and the suite fails if any field of that schema cannot be produced by the wizard
+- **Serializer and validator** - One test per serialization and validation rule
+- **Quarkus Devfile Generation** - Rebuilds the [Quarkus API Example devfile](https://github.com/che-incubator/quarkus-api-example/blob/main/devfile.yaml) through the UI
+- **Full UI coverage** - Parent, the three project lists, every component and command type,
+  variables, and the validation feedback
 
 See [`tests/README.md`](tests/README.md) for detailed testing documentation.
 
@@ -210,23 +219,26 @@ kubectl delete -k openshift
 devfile-gui-wizard/
 ├── src/
 │   ├── components/
-│   │   ├── common/          # Reusable UI components (Button, Card, Alert)
-│   │   ├── forms/           # Form components (Input, Select, TextArea)
-│   │   ├── wizard/          # Wizard navigation and container
+│   │   ├── common/          # Reusable UI components (Button, Card, Alert, Badge)
+│   │   ├── forms/           # Field components (Input, Select, repeaters, attributes editor)
+│   │   ├── editors/         # Editors for components, commands, projects, endpoints, git sources
+│   │   ├── wizard/          # Wizard navigation, progress bar and per-step validation
 │   │   ├── steps/           # Individual wizard step components
 │   │   └── preview/         # YAML preview component
-│   ├── hooks/               # Custom React hooks
-│   │   ├── useWizardState.jsx    # State management
-│   │   └── useYamlGenerator.jsx  # YAML generation
+│   ├── hooks/
+│   │   └── useWizardState.jsx    # State management
 │   ├── utils/               # Utility functions
-│   │   ├── devfileGenerator.js   # Devfile cleaning/validation
-│   │   ├── validation.js         # Form validation rules
+│   │   ├── devfileGenerator.js   # Devfile serialization and validation
+│   │   ├── factories.js          # Factories for every editable devfile element
 │   │   ├── downloadFile.js       # File download utility
 │   │   └── constants.js          # App constants
 │   ├── App.jsx              # Root component
 │   ├── main.jsx             # Application entry point
 │   └── index.css            # Global styles
-├── public/                  # Static assets
+├── tests/
+│   ├── unit/                # Serializer, validator and schema compliance tests
+│   ├── e2e/                 # Browser tests
+│   └── schema/              # Vendored devfile 2.3.0 JSON schema
 ├── index.html               # HTML entry point
 ├── package.json             # Dependencies and scripts
 ├── vite.config.js           # Vite configuration
@@ -240,29 +252,40 @@ devfile-gui-wizard/
 
 1. **State Management**: The application uses React's `useReducer` hook combined with Context API to manage the wizard state and devfile data.
 
-2. **Validation**: Each step includes field-level validation to ensure data integrity and devfile 2.3.0 compliance.
+2. **Validation**: `validateDevfile` applies the schema constraints and the devfile/api validation
+   rules to the whole devfile. Each step shows the messages it is responsible for, and the review
+   step shows all of them; errors block the download, warnings do not.
 
-3. **YAML Generation**: The `js-yaml` library converts the structured JavaScript object into properly formatted YAML, with custom cleaning to remove empty fields.
+3. **YAML Generation**: The serializer walks the devfile schema explicitly instead of cleaning up
+   the UI state, so wizard-only bookkeeping can never leak into the output and empty fields are
+   left out. The `js-yaml` library then renders the resulting object.
 
 4. **Download**: The browser's Blob API creates a downloadable file from the generated YAML content.
 
 ## Devfile 2.3.0 Support
 
-This wizard supports all major devfile 2.3.0 features:
+The wizard covers the whole devfile 2.3.0 schema:
 
-- **Metadata**: name, version, displayName, description, language, provider, tags, website, supportUrl
-- **Projects**: Git and Zip sources with checkoutFrom options
+- **Metadata**: name (or generateName), version, displayName, description, icon, language,
+  projectType, provider, tags, architectures, website, supportUrl, globalMemoryLimit and attributes
+- **Parent**: inheritance by uri, registry id or DevWorkspaceTemplate, with overrides for
+  components, commands, the three project lists, variables and attributes
+- **Projects**: projects, starter projects and dependent projects, from Git (multiple remotes,
+  checkoutFrom) or Zip sources
 - **Components**:
-  - Container (with image, env vars, volume mounts, endpoints, resource limits)
-  - Volume (with size and ephemeral options)
-  - Kubernetes/OpenShift resources
-  - Image builds
-- **Commands**:
-  - Exec (command execution)
-  - Apply (resource application)
-  - Composite (command grouping)
+  - Container (image, command, args, env, volume mounts, endpoints, requests and limits,
+    mountSources, sourceMapping, dedicatedPod, deployment and service annotations)
+  - Volume (size, ephemeral)
+  - Kubernetes and OpenShift resources (uri or inlined, deployByDefault, endpoints)
+  - Image builds (dockerfile from a uri, a devfile registry or a git repository)
+- **Commands**: exec, apply and composite, each with a group, a label and attributes
 - **Events**: preStart, postStart, preStop, postStop
-- **Variables**: String substitution with `{{variable}}` syntax
+- **Variables**: string substitution with `{{variable}}` syntax
+- **Attributes**: free-form YAML on the devfile, metadata, components, commands, projects and
+  endpoints
+
+[`SCHEMA_COVERAGE.md`](SCHEMA_COVERAGE.md) lists every field and the validation rules applied on
+top of the schema.
 
 ## Resources
 

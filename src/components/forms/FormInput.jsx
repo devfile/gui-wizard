@@ -8,9 +8,14 @@ export default function FormInput({
   placeholder = '',
   pattern,
   maxLength,
+  min,
+  max,
   type = 'text',
-  helpText
+  helpText,
+  suggestions
 }) {
+  const listId = suggestions && suggestions.length > 0 ? `${name}-suggestions` : undefined
+
   return (
     <div className="mb-4">
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
@@ -21,11 +26,14 @@ export default function FormInput({
         type={type}
         id={name}
         name={name}
-        value={value}
+        value={value ?? ''}
         onChange={onChange}
         placeholder={placeholder}
         pattern={pattern}
         maxLength={maxLength}
+        min={min}
+        max={max}
+        list={listId}
         className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm
           ${error
             ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500'
@@ -33,6 +41,13 @@ export default function FormInput({
           }
         `}
       />
+      {listId && (
+        <datalist id={listId}>
+          {suggestions.map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
+          ))}
+        </datalist>
+      )}
       {helpText && !error && (
         <p className="mt-1 text-sm text-gray-500">{helpText}</p>
       )}

@@ -1,4 +1,4 @@
-export default function Alert({ type = 'info', title, children, onClose }) {
+export default function Alert({ type = 'info', title, children, onClose, className = '' }) {
   const styles = {
     error: {
       container: 'bg-red-50 border-red-200',
@@ -29,7 +29,7 @@ export default function Alert({ type = 'info', title, children, onClose }) {
   const currentStyle = styles[type]
 
   return (
-    <div className={`border rounded-md p-4 ${currentStyle.container}`}>
+    <div className={`border rounded-md p-4 ${currentStyle.container} ${className}`}>
       <div className="flex">
         <div className="flex-1">
           {title && (
