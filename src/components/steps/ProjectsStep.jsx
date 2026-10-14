@@ -7,7 +7,7 @@ import Alert from '../common/Alert'
 import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
-const ISSUE_PREFIXES = ['Project', 'Starter project', 'Dependent project', 'projects[', 'starterProjects[', 'dependentProjects[']
+const ISSUE_PREFIXES = ['Project', 'Starter project', 'Dependent project']
 
 function ProjectList({ kind, prefix, addButtonText, emptyMessage }) {
   const { items, add, update, remove, move } = useSectionList(kind)

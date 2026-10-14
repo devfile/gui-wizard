@@ -151,6 +151,10 @@ export const RESERVED_ENV_NAMES = ['PROJECT_SOURCE', 'PROJECTS_ROOT']
 // Shared by component names, command ids, project names and endpoint names.
 export const K8S_NAME_PATTERN = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/
 
+// The schema does not constrain variable keys, but `{{key}}` references are
+// only readable with these characters, which is what the Variables step says.
+export const VARIABLE_KEY_PATTERN = /^[a-zA-Z0-9_-]+$/
+
 export const SCHEMA_VERSION_PATTERN =
   /^([2-9])\.([0-9]+)\.([0-9]+)(-[0-9a-z-]+(\.[0-9a-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/
 

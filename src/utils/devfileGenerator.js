@@ -1,10 +1,15 @@
 import yaml from 'js-yaml'
 import {
+  ARCHITECTURES,
+  COMMAND_GROUPS,
+  ENDPOINT_EXPOSURES,
+  ENDPOINT_PROTOCOLS,
   K8S_NAME_PATTERN,
   METADATA_VERSION_PATTERN,
   PARENT_VERSION_PATTERN,
   RESERVED_ENV_NAMES,
-  SCHEMA_VERSION_PATTERN
+  SCHEMA_VERSION_PATTERN,
+  VARIABLE_KEY_PATTERN
 } from './constants'
 import { getCommandType, getComponentType } from './factories'
 
@@ -423,6 +428,23 @@ export function generateYaml(data) {
  * (pkg/validation/validation-rule.md) on top of the JSON schema constraints.
  * ------------------------------------------------------------------ */
 
+/** The component types that own an `endpoints` list. */
+const ENDPOINT_HOLDERS = ['container', 'kubernetes', 'openshift']
+
+// The schema enums. The wizard only offers them through selects, but the
+// serializer must never be the only thing standing between a hand-made state
+// and an invalid devfile.
+const PROTOCOLS = ENDPOINT_PROTOCOLS.map((protocol) => protocol.value)
+const EXPOSURES = ENDPOINT_EXPOSURES.map((exposure) => exposure.value)
+const GROUP_KINDS = COMMAND_GROUPS.map((group) => group.value)
+
+/** The three project lists, with the label their messages use. */
+const PROJECT_LABELS = [
+  ['projects', 'Project'],
+  ['starterProjects', 'Starter project'],
+  ['dependentProjects', 'Dependent project']
+]
+
 const QUANTITY_PATTERN =
   /^([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))(?:([eE][+-]?[0-9]+)|(Ki|Mi|Gi|Ti|Pi|Ei)|(n|u|m|k|M|G|T|P|E))?$/
 
@@ -483,6 +505,17 @@ function isValidName(value) {
   return typeof value === 'string' && K8S_NAME_PATTERN.test(value) && value.length <= 63
 }
 
+/** `Component "tools"` or, while it has no name yet, `Component #2`. */
+function elementLabel(kind, name, index) {
+  return `${kind} ${name ? `"${name}"` : `#${index + 1}`}`
+}
+
+/** Reports a value the schema restricts to a fixed set of alternatives. */
+function checkEnum(value, allowed, path, errors) {
+  if (value === undefined || allowed.includes(value)) return
+  errors.push(`${path} "${value}" must be one of ${allowed.join(', ')}`)
+}
+
 function checkDuplicates(values, prefix, field, errors) {
   const seen = new Set()
   const reported = new Set()
@@ -501,6 +534,56 @@ function validateAttributeText(text, path, errors) {
   if (error) errors.push(`${path}: invalid attributes YAML — ${error}`)
 }
 
+/** "a volume mount", "an environment variable". */
+function withArticle(noun) {
+  return `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`
+}
+
+/**
+ * Checks a `[{ key, value }]` map held by the wizard state.
+ *
+ * Serializing collapses duplicate keys and drops entries without one, so both
+ * have to be reported on the state rather than on the generated devfile.
+ */
+function checkMapEntries(entries, where, what, errors) {
+  if (!Array.isArray(entries)) return
+
+  const seen = new Set()
+  const reported = new Set()
+  let missingKeyReported = false
+
+  for (const entry of entries) {
+    const key = str(entry?.key)
+
+    if (key === undefined) {
+      if (!missingKeyReported && str(entry?.value) !== undefined) {
+        errors.push(`${where}: ${withArticle(what)} has a value but no name`)
+        missingKeyReported = true
+      }
+      continue
+    }
+
+    if (seen.has(key) && !reported.has(key)) {
+      errors.push(`${where}: duplicate ${what} "${key}"`)
+      reported.add(key)
+    }
+    seen.add(key)
+  }
+}
+
+/** Same, for the lists keyed by `name`, where a nameless entry is dropped. */
+function checkNamedEntries(entries, where, what, hasValue, errors) {
+  if (!Array.isArray(entries)) return
+
+  for (const entry of entries) {
+    if (str(entry?.name) !== undefined) continue
+    if (hasValue(entry)) {
+      errors.push(`${where}: ${withArticle(what)} has a value but no name`)
+      return
+    }
+  }
+}
+
 function validateGitRemotes(git, { label, singleRemote, partial }, errors) {
   const remotes = git?.remotes ? Object.keys(git.remotes) : []
   const checkoutRemote = git?.checkoutFrom?.remote
@@ -509,6 +592,10 @@ function validateGitRemotes(git, { label, singleRemote, partial }, errors) {
     // Overrides may rely on the remotes declared by the parent.
     if (!partial) errors.push(`${label}: a git source needs at least one remote`)
     return
+  }
+
+  for (const [remote, url] of Object.entries(git.remotes)) {
+    if (url === '') errors.push(`${label}: git remote "${remote}" has no URL`)
   }
 
   if (singleRemote && remotes.length > 1) {
@@ -533,7 +620,7 @@ function validateProjects(projects, { kind, label, partial }, errors, warnings) 
 
   projects.forEach((project, index) => {
     const name = project.name
-    const where = `${label} ${name ? `"${name}"` : `#${index + 1}`}`
+    const where = elementLabel(label, name, index)
 
     if (!name) {
       errors.push(`${where}: name is required`)
@@ -563,7 +650,7 @@ function validateEndpointList(endpoints, where, errors, state, { isContainer, de
   const portsInComponent = new Set()
 
   endpoints.forEach((endpoint, index) => {
-    const label = `${where} endpoint ${endpoint.name ? `"${endpoint.name}"` : `#${index + 1}`}`
+    const label = `${where} ${elementLabel('endpoint', endpoint.name, index)}`
 
     if (!endpoint.name) {
       errors.push(`${label}: name is required`)
@@ -585,6 +672,9 @@ function validateEndpointList(endpoints, where, errors, state, { isContainer, de
     } else if (isContainer && !dedicatedPod && !partial) {
       portsInComponent.add(endpoint.targetPort)
     }
+
+    checkEnum(endpoint.protocol, PROTOCOLS, `${label}: protocol`, errors)
+    checkEnum(endpoint.exposure, EXPOSURES, `${label}: exposure`, errors)
   })
 
   for (const port of portsInComponent) {
@@ -616,7 +706,7 @@ function validateComponents(components, errors, warnings, { hasParent, partial, 
 
   components.forEach((component, index) => {
     const name = component.name
-    const where = `${label} ${name ? `"${name}"` : `#${index + 1}`}`
+    const where = elementLabel(label, name, index)
 
     if (!name) {
       errors.push(`${where}: name is required`)
@@ -668,9 +758,13 @@ function validateComponents(components, errors, warnings, { hasParent, partial, 
         errors.push(`${where}: cpuRequest is greater than cpuLimit`)
       }
 
+      // The schema constrains a mount name the same way as a component name,
+      // and an override never relaxes it.
       for (const mount of container.volumeMounts || []) {
-        if (!mount.name) {
-          errors.push(`${where}: a volume mount is missing its volume name`)
+        if (!isValidName(mount.name)) {
+          errors.push(
+            `${where}: volume mount name "${mount.name}" must be lowercase alphanumeric with dashes, max 63 characters`
+          )
         } else if (!volumeNames.has(mount.name)) {
           reference.push(`${where}: volume mount "${mount.name}" does not reference a volume component`)
         }
@@ -711,6 +805,14 @@ function validateComponents(components, errors, warnings, { hasParent, partial, 
       }
       if (k8s.uri !== undefined && !isValidUri(k8s.uri)) {
         errors.push(`${where}: "${k8s.uri}" is not a valid URI`)
+      }
+      if (k8s.inlined !== undefined) {
+        try {
+          // A manifest may hold several documents separated by `---`.
+          yaml.loadAll(k8s.inlined)
+        } catch (err) {
+          errors.push(`${where}: the inlined manifest is not valid YAML — ${err.reason || err.message}`)
+        }
       }
 
       validateEndpointList(k8s.endpoints, where, errors, endpointState, { isContainer: false, partial })
@@ -783,7 +885,7 @@ function validateCommands(commands, components, errors, warnings, { hasParent, p
 
   commands.forEach((command, index) => {
     const id = command.id
-    const where = `${label} ${id ? `"${id}"` : `#${index + 1}`}`
+    const where = elementLabel(label, id, index)
 
     if (!id) {
       errors.push(`${where}: id is required`)
@@ -802,6 +904,7 @@ function validateCommands(commands, components, errors, warnings, { hasParent, p
 
     if (body.group?.kind) {
       const kind = body.group.kind
+      checkEnum(kind, GROUP_KINDS, `${where}: group kind`, errors)
       if (!groups.has(kind)) groups.set(kind, [])
       groups.get(kind).push({ id: id || `#${index + 1}`, isDefault: body.group.isDefault === true })
     }
@@ -902,12 +1005,20 @@ function findCompositeCycle(startId, commandsById) {
   return visit(startId) && path.length > 2 ? [...path] : null
 }
 
-function validateEventList(eventType, commandIds, commandsById, errors, reference) {
+function validateEventList(eventType, commandIds, commandsById, errors, warnings, reference) {
   if (!commandIds) return
 
   const expected = eventType === 'preStart' || eventType === 'postStop' ? 'apply' : 'exec'
+  const seen = new Set()
+  const reportedDuplicates = new Set()
 
   for (const id of commandIds) {
+    if (seen.has(id) && !reportedDuplicates.has(id)) {
+      warnings.push(`Event ${eventType}: "${id}" is bound more than once`)
+      reportedDuplicates.add(id)
+    }
+    seen.add(id)
+
     const command = commandsById.get(id)
     if (!command) {
       reference.push(`Event ${eventType}: "${id}" does not map to a devfile command`)
@@ -944,7 +1055,14 @@ function validateEvents(events, commands, errors, warnings, { hasParent } = {}) 
   }
 
   for (const eventType of ['preStart', 'postStart', 'preStop', 'postStop']) {
-    validateEventList(eventType, events[eventType], commandsById, errors, hasParent ? warnings : errors)
+    validateEventList(
+      eventType,
+      events[eventType],
+      commandsById,
+      errors,
+      warnings,
+      hasParent ? warnings : errors
+    )
   }
 }
 
@@ -974,6 +1092,10 @@ function validateMetadataSection(metadata, errors, warnings) {
     if (metadata[field] && !isValidUri(metadata[field])) {
       errors.push(`Metadata: ${field} "${metadata[field]}" is not a valid URI`)
     }
+  }
+
+  for (const architecture of metadata.architectures || []) {
+    checkEnum(architecture, ARCHITECTURES, 'Metadata: architecture', errors)
   }
 
   if (metadata.globalMemoryLimit && parseQuantity(metadata.globalMemoryLimit) === null) {
@@ -1020,14 +1142,8 @@ function validateParentSection(parent, errors, warnings) {
 function validateParentOverrides(parent, errors, warnings) {
   if (!parent) return
 
-  const projectLists = [
-    ['projects', 'Parent project'],
-    ['starterProjects', 'Parent starter project'],
-    ['dependentProjects', 'Parent dependent project']
-  ]
-
-  for (const [kind, label] of projectLists) {
-    validateProjects(parent[kind], { kind, label, partial: true }, errors, warnings)
+  for (const [kind, label] of PROJECT_LABELS) {
+    validateProjects(parent[kind], { kind, label: `Parent ${label.toLowerCase()}`, partial: true }, errors, warnings)
   }
 
   validateComponents(parent.components, errors, warnings, { partial: true, label: 'Parent component' })
@@ -1037,60 +1153,111 @@ function validateParentOverrides(parent, errors, warnings) {
   })
 }
 
-/** Reports free-form attribute fields that do not parse as YAML maps. */
-function validateAttributeTexts(data, errors) {
+function validateRawProject(project, where, errors) {
+  validateAttributeText(project.attributes, `${where} attributes`, errors)
+  checkMapEntries(project.git?.remotes, where, 'git remote', errors)
+}
+
+function validateRawComponent(component, where, errors) {
+  validateAttributeText(component.attributes, `${where} attributes`, errors)
+
+  const container = component.container
+  if (container) {
+    checkNamedEntries(
+      container.env,
+      where,
+      'environment variable',
+      (entry) => str(entry?.value) !== undefined,
+      errors
+    )
+    checkNamedEntries(
+      container.volumeMounts,
+      where,
+      'volume mount',
+      (entry) => str(entry?.path) !== undefined,
+      errors
+    )
+    checkMapEntries(container.annotation?.deployment, where, 'deployment annotation', errors)
+    checkMapEntries(container.annotation?.service, where, 'service annotation', errors)
+  }
+
+  const dockerfile = component.image?.dockerfile
+  if (dockerfile?.git) {
+    checkMapEntries(dockerfile.git.remotes, `${where} dockerfile`, 'git remote', errors)
+  }
+
+  for (const key of ENDPOINT_HOLDERS) {
+    ;(component[key]?.endpoints || []).forEach((endpoint, index) => {
+      const label = `${where} ${elementLabel('endpoint', endpoint.name, index)}`
+      validateAttributeText(endpoint.attributes, `${label} attributes`, errors)
+      checkMapEntries(endpoint.annotation, label, 'annotation', errors)
+    })
+  }
+}
+
+function validateRawCommand(command, where, errors) {
+  validateAttributeText(command.attributes, `${where} attributes`, errors)
+
+  if (command.exec) {
+    checkNamedEntries(
+      command.exec.env,
+      where,
+      'environment variable',
+      (entry) => str(entry?.value) !== undefined,
+      errors
+    )
+  }
+}
+
+/**
+ * Validates the parts of the wizard state that serialization flattens away:
+ * free-form attribute text, and the `[{ key, value }]` maps whose duplicate or
+ * nameless entries would disappear from the generated devfile without a word.
+ */
+function validateRawState(data, errors, warnings) {
   validateAttributeText(data.attributes, 'Devfile attributes', errors)
   validateAttributeText(data.metadata?.attributes, 'Metadata attributes', errors)
 
-  const projectGroups = [
-    ['projects', data.projects],
-    ['starterProjects', data.starterProjects],
-    ['dependentProjects', data.dependentProjects]
-  ]
+  checkMapEntries(data.variables, 'Variables', 'variable', errors)
+  for (const variable of data.variables || []) {
+    const key = str(variable?.key)
+    if (key !== undefined && !VARIABLE_KEY_PATTERN.test(key)) {
+      warnings.push(`Variables: "${key}" should only use alphanumeric characters, dashes and underscores`)
+    }
+  }
 
-  for (const [kind, projects] of projectGroups) {
-    ;(projects || []).forEach((project, index) => {
-      validateAttributeText(project.attributes, `${kind}[${index + 1}] attributes`, errors)
+  for (const [kind, label] of PROJECT_LABELS) {
+    ;(data[kind] || []).forEach((project, index) => {
+      validateRawProject(project, elementLabel(label, project.name, index), errors)
     })
   }
 
   ;(data.components || []).forEach((component, index) => {
-    validateAttributeText(component.attributes, `Component ${component.name || `#${index + 1}`} attributes`, errors)
-    const endpoints = component.container?.endpoints || component.kubernetes?.endpoints || component.openshift?.endpoints
-    ;(endpoints || []).forEach((endpoint, endpointIndex) => {
-      validateAttributeText(
-        endpoint.attributes,
-        `Component ${component.name || `#${index + 1}`} endpoint ${endpoint.name || `#${endpointIndex + 1}`} attributes`,
-        errors
-      )
-    })
+    validateRawComponent(component, elementLabel('Component', component.name, index), errors)
   })
 
   ;(data.commands || []).forEach((command, index) => {
-    validateAttributeText(command.attributes, `Command ${command.id || `#${index + 1}`} attributes`, errors)
+    validateRawCommand(command, elementLabel('Command', command.id, index), errors)
   })
 
-  if (data.parent) {
-    validateAttributeText(data.parent.attributes, 'Parent attributes', errors)
+  if (!data.parent) return
 
-    ;(data.parent.components || []).forEach((component, index) => {
-      validateAttributeText(
-        component.attributes,
-        `Parent component ${component.name || `#${index + 1}`} attributes`,
-        errors
-      )
+  validateAttributeText(data.parent.attributes, 'Parent attributes', errors)
+  checkMapEntries(data.parent.variables, 'Parent variables', 'variable', errors)
+
+  for (const [kind, label] of PROJECT_LABELS) {
+    ;(data.parent[kind] || []).forEach((project, index) => {
+      validateRawProject(project, elementLabel(`Parent ${label.toLowerCase()}`, project.name, index), errors)
     })
-
-    ;(data.parent.commands || []).forEach((command, index) => {
-      validateAttributeText(command.attributes, `Parent command ${command.id || `#${index + 1}`} attributes`, errors)
-    })
-
-    for (const kind of ['projects', 'starterProjects', 'dependentProjects']) {
-      ;(data.parent[kind] || []).forEach((project, index) => {
-        validateAttributeText(project.attributes, `Parent ${kind}[${index + 1}] attributes`, errors)
-      })
-    }
   }
+
+  ;(data.parent.components || []).forEach((component, index) => {
+    validateRawComponent(component, elementLabel('Parent component', component.name, index), errors)
+  })
+
+  ;(data.parent.commands || []).forEach((command, index) => {
+    validateRawCommand(command, elementLabel('Parent command', command.id, index), errors)
+  })
 }
 
 /**
@@ -1103,7 +1270,7 @@ export function validateDevfile(data) {
   const errors = []
   const warnings = []
 
-  validateAttributeTexts(data, errors)
+  validateRawState(data, errors, warnings)
 
   const devfile = buildDevfile(data)
 
@@ -1121,14 +1288,9 @@ export function validateDevfile(data) {
 
   validateMetadataSection(devfile.metadata, errors, warnings)
   validateParentSection(devfile.parent, errors, warnings)
-  validateProjects(devfile.projects, { kind: 'projects', label: 'Project' }, errors, warnings)
-  validateProjects(devfile.starterProjects, { kind: 'starterProjects', label: 'Starter project' }, errors, warnings)
-  validateProjects(
-    devfile.dependentProjects,
-    { kind: 'dependentProjects', label: 'Dependent project' },
-    errors,
-    warnings
-  )
+  for (const [kind, label] of PROJECT_LABELS) {
+    validateProjects(devfile[kind], { kind, label }, errors, warnings)
+  }
   validateComponents(devfile.components, errors, warnings, options)
   validateCommands(devfile.commands, devfile.components, errors, warnings, options)
   validateEvents(devfile.events, devfile.commands, errors, warnings, options)

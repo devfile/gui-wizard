@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
 import Ajv from 'ajv'
 import { buildDevfile, validateDevfile } from '../../src/utils/devfileGenerator'
-import { fullCoverageStates } from './fixtures/devfile-states'
+import { fullCoverageState, fullCoverageStates } from './fixtures/devfile-states'
 
 /**
  * Checks the wizard against the published devfile 2.3.0 JSON schema:
@@ -129,6 +129,86 @@ test.describe('devfile 2.3.0 schema', () => {
       )
 
       expect(unexpected, `fields outside the schema: ${unexpected.join(', ')}`).toEqual([])
+    }
+  })
+
+  test('a devfile the wizard accepts is also accepted by the schema', () => {
+    // The constraints the schema puts on values (patterns, enums, lengths and
+    // bounds), each broken in the place the wizard could emit it. Whatever the
+    // wizard lets through here has to stay valid for the schema: a rule that
+    // is only checked at the top level, or not at all, shows up as a failure.
+    const containerOf = (component) => component.container
+    const breakages = {
+      'component name': (state) => {
+        state.components[0].name = 'Not A Name'
+      },
+      'volume mount name': (state) => {
+        state.components.find(containerOf).container.volumeMounts[0].name = 'Not A Name'
+      },
+      'long volume mount name': (state) => {
+        state.components.find(containerOf).container.volumeMounts[0].name = 'm'.repeat(64)
+      },
+      'override volume mount name': (state) => {
+        state.parent.components.find(containerOf).container.volumeMounts[0].name = 'Not A Name'
+      },
+      'endpoint name': (state) => {
+        state.components.find(containerOf).container.endpoints[0].name = 'Not An Endpoint'
+      },
+      'override endpoint name': (state) => {
+        state.parent.components.find(containerOf).container.endpoints[0].name = 'way-too-long-endpoint'
+      },
+      'endpoint protocol': (state) => {
+        state.components.find(containerOf).container.endpoints[0].protocol = 'ftp'
+      },
+      'endpoint exposure': (state) => {
+        state.components.find(containerOf).container.endpoints[0].exposure = 'everyone'
+      },
+      'command id': (state) => {
+        state.commands[0].id = 'Not An Id'
+      },
+      'override command id': (state) => {
+        state.parent.commands[0].id = 'Not An Id'
+      },
+      'command group kind': (state) => {
+        state.commands[0].exec.group.kind = 'lint'
+      },
+      'project name': (state) => {
+        state.projects[0].name = 'Not A Name'
+      },
+      'override project name': (state) => {
+        state.parent.starterProjects[0].name = 'Not A Name'
+      },
+      'metadata version': (state) => {
+        state.metadata.version = 'version one'
+      },
+      'metadata architecture': (state) => {
+        state.metadata.architectures = ['sparc']
+      },
+      'schema version': (state) => {
+        state.schemaVersion = '1.0.0'
+      },
+      'parent version': (state) => {
+        // `version` only goes with a registry id.
+        state.parent.uri = null
+        state.parent.id = 'java-quarkus'
+        state.parent.registryUrl = 'https://registry.devfile.io'
+        state.parent.version = '0.1.0'
+      }
+    }
+
+    for (const [what, breakIt] of Object.entries(breakages)) {
+      const state = fullCoverageState()
+      breakIt(state)
+
+      expect(
+        validateAgainstSchema(buildDevfile(state)),
+        `the fixture for a broken ${what} is not a schema violation, the case proves nothing`
+      ).toBe(false)
+
+      expect(
+        validateDevfile(state).errors,
+        `the schema rejects a broken ${what}, the wizard reports no error`
+      ).not.toEqual([])
     }
   })
 

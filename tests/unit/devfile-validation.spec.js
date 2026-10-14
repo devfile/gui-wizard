@@ -135,6 +135,26 @@ test.describe('projects', () => {
     expectMessage(errorsOf(state({ starterProjects: [starter] })), 'can only have one remote')
   })
 
+  test('a remote without a URL is reported', () => {
+    const project = createProject('projects')
+    project.name = 'sample'
+
+    // The editor starts a project off with an empty "origin" remote.
+    expectMessage(errorsOf(state({ projects: [project] })), 'git remote "origin" has no URL')
+  })
+
+  test('two remotes cannot share a name', () => {
+    const project = createProject('projects')
+    project.name = 'sample'
+    project.git.remotes = [
+      { key: 'origin', value: 'https://github.com/devfile/api.git' },
+      { key: 'origin', value: 'https://github.com/ibuziuk/api.git' }
+    ]
+
+    // Serializing keeps the last one, so the first would be lost silently.
+    expectMessage(errorsOf(state({ projects: [project] })), 'duplicate git remote "origin"')
+  })
+
   test('a zip source without a location warns', () => {
     const project = createProject('projects')
     project.name = 'sample'
@@ -181,6 +201,28 @@ test.describe('components', () => {
     const volume = createComponent('volume')
     volume.name = 'm2'
     expect(errorsOf(state({ components: [component, volume] }))).toEqual([])
+  })
+
+  test('a volume mount name must be a valid name', () => {
+    const component = container('tools', { volumeMounts: [{ name: 'Not A Name', path: '/data' }] })
+
+    expectMessage(
+      errorsOf(state({ components: [component] })),
+      'volume mount name "Not A Name" must be lowercase alphanumeric'
+    )
+  })
+
+  test('entries that would be dropped on serialization are reported', () => {
+    const nameless = container('tools', {
+      env: [{ name: '', value: 'lost' }],
+      volumeMounts: [{ name: '', path: '/data' }],
+      annotation: { deployment: [{ key: '', value: 'lost' }], service: [] }
+    })
+
+    const errors = errorsOf(state({ components: [nameless] }))
+    expectMessage(errors, 'an environment variable has a value but no name')
+    expectMessage(errors, 'a volume mount has a value but no name')
+    expectMessage(errors, 'a deployment annotation has a value but no name')
   })
 
   test('containers sharing the pod cannot give the same annotation two values', () => {
@@ -248,6 +290,19 @@ test.describe('components', () => {
 
     component.kubernetes.uri = 'https://not a url'
     expectMessage(errorsOf(state({ components: [component] })), 'is not a valid URI')
+  })
+
+  test('an inlined manifest must be valid YAML', () => {
+    const component = createComponent('kubernetes')
+    component.name = 'k8s'
+    component.kubernetes.uri = null
+    component.kubernetes.inlined = 'kind: [Deployment'
+
+    expectMessage(errorsOf(state({ components: [component] })), 'the inlined manifest is not valid YAML')
+
+    // Several documents in one manifest are allowed.
+    component.kubernetes.inlined = 'kind: Deployment\n---\nkind: Service'
+    expect(errorsOf(state({ components: [component] }))).toEqual([])
   })
 
   test('an image component needs a name and exactly one dockerfile source', () => {
@@ -394,6 +449,17 @@ test.describe('events', () => {
     expect(errorsOf(data)).toEqual([])
   })
 
+  test('binding the same command twice warns', () => {
+    const data = state({
+      components: [container('tools')],
+      commands: [exec('build')],
+      events: { preStart: [], postStart: ['build', 'build'], preStop: [], postStop: [] }
+    })
+
+    expect(errorsOf(data)).toEqual([])
+    expectMessage(warningsOf(data), 'Event postStart: "build" is bound more than once')
+  })
+
   test('an unknown command id is reported', () => {
     const data = state({
       events: { preStart: [], postStart: ['missing'], preStop: [], postStop: [] }
@@ -478,6 +544,35 @@ test.describe('parent', () => {
     component.image.dockerfile = null
     component.image.autoBuild = false
     expect(errorsOf(state({ parent }))).toEqual([])
+  })
+})
+
+test.describe('variables', () => {
+  test('a variable needs a unique name', () => {
+    expectMessage(
+      errorsOf(state({ variables: [{ key: 'version', value: '1' }, { key: 'version', value: '2' }] })),
+      'Variables: duplicate variable "version"'
+    )
+
+    expectMessage(
+      errorsOf(state({ variables: [{ key: '', value: '1.0.0' }] })),
+      'Variables: a variable has a value but no name'
+    )
+  })
+
+  test('a name that is awkward to reference warns', () => {
+    const data = state({ variables: [{ key: 'java version', value: '21' }] })
+
+    expect(errorsOf(data)).toEqual([])
+    expectMessage(warningsOf(data), 'should only use alphanumeric characters, dashes and underscores')
+  })
+
+  test('parent variable overrides are checked too', () => {
+    const parent = createParent()
+    parent.uri = 'https://example.com/devfile.yaml'
+    parent.variables = [{ key: 'version', value: '1' }, { key: 'version', value: '2' }]
+
+    expectMessage(errorsOf(state({ parent })), 'Parent variables: duplicate variable "version"')
   })
 })
 

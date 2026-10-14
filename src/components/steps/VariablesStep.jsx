@@ -1,7 +1,10 @@
 import { useWizard } from '../../hooks/useWizardState'
 import MapFieldManager from '../forms/MapFieldManager'
 import Alert from '../common/Alert'
+import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
+
+const ISSUE_PREFIXES = ['Variables']
 
 export default function VariablesStep() {
   const { state, dispatch, actions } = useWizard()
@@ -19,6 +22,8 @@ export default function VariablesStep() {
         Variables are substituted in the string fields of components, commands, projects and events. Keys may only
         contain alphanumeric characters, dashes and underscores.
       </Alert>
+
+      <StepIssues prefixes={ISSUE_PREFIXES} />
 
       <MapFieldManager
         name="variable"
