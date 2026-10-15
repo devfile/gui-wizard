@@ -5,6 +5,10 @@ import Button from '../common/Button'
  *
  * `renderItem` receives the item together with a setter that replaces the
  * whole item, which keeps editors free of field-path plumbing.
+ *
+ * Items are keyed by the `_uid` their factory assigns, so that the editor state
+ * React keeps outside of `devfileData` (an open `CollapsibleSection`, say)
+ * follows the item when the list is reordered or an entry is removed.
  */
 export default function ArrayFieldManager({
   items = [],
@@ -28,7 +32,7 @@ export default function ArrayFieldManager({
         <div className="space-y-4">
           {items.map((item, index) => (
             <div
-              key={index}
+              key={item._uid ?? index}
               data-testid={testId ? `${testId}-${index}` : undefined}
               className="relative border border-gray-200 rounded-lg p-4 bg-white"
             >

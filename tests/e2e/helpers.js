@@ -5,9 +5,11 @@ import yaml from 'js-yaml'
 export async function goToStep(page, heading) {
   for (let step = 0; step < 10; step += 1) {
     const current = page.locator('.wizard-step h2')
-    if ((await current.textContent()) === heading) return
+    const text = await current.textContent()
+    if (text === heading) return
 
     await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await expect(current).not.toHaveText(text)
   }
 
   throw new Error(`Step "${heading}" was never reached`)

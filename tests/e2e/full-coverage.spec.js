@@ -253,3 +253,28 @@ test.describe('validation', () => {
     await expect(page.locator('input[name="name"]')).toHaveValue('')
   })
 })
+
+test.describe('reordering a list', () => {
+  const envSection = (page, testId) =>
+    page.getByTestId(testId).getByRole('button', { name: /Environment variables/ })
+
+  test('an expanded section follows its component', async ({ page }) => {
+    await page.goto('/')
+    await page.fill('input[name="name"]', 'sample')
+
+    await goToStep(page, 'Components')
+    await page.getByRole('button', { name: 'Add Component' }).click()
+    await page.fill('input[name="component-name-0"]', 'first')
+    await page.getByRole('button', { name: 'Add Component' }).click()
+    await page.fill('input[name="component-name-1"]', 'second')
+
+    await envSection(page, 'component-1').click()
+    await expect(envSection(page, 'component-1')).toHaveAttribute('aria-expanded', 'true')
+
+    await page.getByTestId('component-1').getByTitle('Move up').click()
+
+    await expect(page.locator('input[name="component-name-0"]')).toHaveValue('second')
+    await expect(envSection(page, 'component-0')).toHaveAttribute('aria-expanded', 'true')
+    await expect(envSection(page, 'component-1')).toHaveAttribute('aria-expanded', 'false')
+  })
+})
