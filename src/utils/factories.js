@@ -14,6 +14,9 @@ import { DEVFILE_SCHEMA_VERSION } from './constants'
  *  - string -> string maps (git remotes, annotations, variables) are kept as
  *    ordered `[{ key, value }]` arrays so that keys stay editable.
  *  - free-form `attributes` are kept as raw YAML text and parsed on serialize.
+ *  - elements of the reorderable lists carry a `_uid` so that React can keep
+ *    editor state with the item and not with its position. It is wizard-only
+ *    state; the serializer walks the schema and never emits it.
  *
  * `partial` marks elements that live under `parent` overrides, where no field
  * is required and booleans must stay tri-state.
@@ -22,6 +25,13 @@ import { DEVFILE_SCHEMA_VERSION } from './constants'
 export const COMPONENT_TYPE_KEYS = ['container', 'kubernetes', 'openshift', 'volume', 'image']
 export const COMMAND_TYPE_KEYS = ['exec', 'apply', 'composite']
 export const PROJECT_KINDS = ['projects', 'starterProjects', 'dependentProjects']
+
+let uidCounter = 0
+
+export function nextUid() {
+  uidCounter += 1
+  return `uid-${uidCounter}`
+}
 
 export function createKeyValue(key = '', value = '') {
   return { key, value }
@@ -37,6 +47,7 @@ export function createVolumeMount() {
 
 export function createEndpoint() {
   return {
+    _uid: nextUid(),
     name: '',
     targetPort: '',
     exposure: '',
@@ -130,7 +141,11 @@ export function createComponent(type = 'container', partial = false) {
 }
 
 export function applyComponentType(component, type, partial = false) {
-  const next = { name: component.name || '', attributes: component.attributes || '' }
+  const next = {
+    _uid: component._uid || nextUid(),
+    name: component.name || '',
+    attributes: component.attributes || ''
+  }
 
   switch (type) {
     case 'volume':
@@ -169,7 +184,11 @@ export function createCommand(type = 'exec', partial = false) {
 }
 
 export function applyCommandType(command, type, partial = false) {
-  const next = { id: command.id || '', attributes: command.attributes || '' }
+  const next = {
+    _uid: command._uid || nextUid(),
+    id: command.id || '',
+    attributes: command.attributes || ''
+  }
 
   switch (type) {
     case 'apply':
@@ -210,7 +229,7 @@ export function getCommandType(command) {
 }
 
 export function createProject(kind = 'projects') {
-  const project = { name: '', attributes: '' }
+  const project = { _uid: nextUid(), name: '', attributes: '' }
 
   if (kind === 'starterProjects') {
     project.description = ''

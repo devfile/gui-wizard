@@ -25,7 +25,8 @@ The application is stateless - all devfile generation happens client-side with n
 - `src/utils/factories.js` - factories for every editable devfile element, and the conventions the
   wizard state follows: `null` means "this optional sub-object is not selected", `''` means
   "selected but empty", `undefined` for a boolean means "not set", maps are kept as ordered
-  `[{ key, value }]` arrays, and free-form `attributes` are kept as raw YAML text.
+  `[{ key, value }]` arrays, free-form `attributes` are kept as raw YAML text, and elements of the
+  reorderable lists carry a wizard-only `_uid` that `ArrayFieldManager` uses as the React key.
 - `src/utils/devfileGenerator.js` - `buildDevfile`/`generateYaml` serialize the state by walking the
   schema explicitly (never by cleaning up the UI state), and `validateDevfile` returns blocking
   `errors` and advisory `warnings`.
