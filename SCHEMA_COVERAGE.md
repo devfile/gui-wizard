@@ -33,6 +33,9 @@ exclusive with `name`.
 
 ## parent
 
+The whole section is optional: a devfile that does not inherit from a parent is valid, so an empty
+parent step generates no `parent` key and raises neither an error nor a warning.
+
 Source: `uri`, `id` (with `registryUrl` and `version`) or `kubernetes` (`name`, `namespace`).
 
 Overrides: `components`, `commands`, `projects`, `starterProjects`, `dependentProjects`,

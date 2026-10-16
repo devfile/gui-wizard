@@ -180,6 +180,27 @@ test.describe('full schema coverage through the UI', () => {
     await expect(page.getByRole('button', { name: 'Add Parent' })).toBeVisible()
     expect((await readYaml(page)).parent).toBeUndefined()
   })
+
+  test('the parent step is optional and skipping it raises nothing', async ({ page }) => {
+    await page.goto('/')
+    await page.fill('input[name="name"]', 'sample')
+
+    await goToStep(page, 'Parent')
+    await expect(page.getByText('Optional', { exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Referring to a parent devfile' })).toHaveAttribute(
+      'href',
+      'https://devfile.io/docs/2.3.0/referring-to-a-parent-devfile'
+    )
+
+    // An empty parent section is equivalent to no parent at all.
+    await page.getByRole('button', { name: 'Add Parent' }).click()
+
+    await goToStep(page, 'Review & Download')
+    expect((await readYaml(page)).parent).toBeUndefined()
+    await expect(page.getByText('Not used (optional)')).toBeVisible()
+    await expect(page.getByTestId('review-warnings')).toHaveCount(0)
+    await expect(page.getByText('Valid devfile')).toBeVisible()
+  })
 })
 
 test.describe('validation', () => {
