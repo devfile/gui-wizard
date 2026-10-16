@@ -470,12 +470,22 @@ test.describe('events', () => {
 })
 
 test.describe('parent', () => {
-  test('exactly one parent source is required', () => {
+  test('a devfile without a parent is not reported', () => {
+    expect(warningsOf(state()).filter((message) => message.startsWith('Parent'))).toEqual([])
+
+    // An empty parent section produces no devfile content, which is the same
+    // as not inheriting at all.
     const data = state({ parent: { ...createParent(), uri: '' } })
+    expect(warningsOf(data).filter((message) => message.startsWith('Parent'))).toEqual([])
+    expect(errorsOf(data).filter((message) => message.startsWith('Parent'))).toEqual([])
+  })
 
-    expectMessage(warningsOf(data), 'no parent source configured')
+  test('exactly one parent source is required', () => {
+    const data = state({ parent: { ...createParent(), uri: 'https://example.com/devfile.yaml', id: 'nodejs' } })
+    expectMessage(errorsOf(data), 'exactly one of uri, id or kubernetes must be set')
 
-    data.parent = { ...createParent(), uri: 'https://example.com/devfile.yaml', id: 'nodejs' }
+    // Overrides without a source would be dropped silently.
+    data.parent = { ...createParent(), uri: '', components: [container('tools')] }
     expectMessage(errorsOf(data), 'exactly one of uri, id or kubernetes must be set')
   })
 

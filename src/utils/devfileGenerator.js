@@ -1280,11 +1280,10 @@ export function validateDevfile(data) {
     errors.push(`Schema version "${devfile.schemaVersion}" is not a valid devfile schema version`)
   }
 
+  // Inheriting from a parent is optional, so a devfile without a parent section
+  // is never reported. A parent that holds overrides but no source still builds
+  // a section, which `validateParentSection` rejects.
   const options = { hasParent: devfile.parent !== undefined }
-
-  if (data.parent && devfile.parent === undefined) {
-    warnings.push('Parent: no parent source configured, the section is left out of the devfile')
-  }
 
   validateMetadataSection(devfile.metadata, errors, warnings)
   validateParentSection(devfile.parent, errors, warnings)

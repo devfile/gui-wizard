@@ -21,14 +21,14 @@ function countBy(items, resolve) {
   return [...counts.entries()].map(([key, count]) => `${count} ${key}`).join(', ')
 }
 
-function SummaryCard({ title, stepId, configured, onEdit, children }) {
+function SummaryCard({ title, stepId, configured, notConfiguredLabel = 'Not configured', onEdit, children }) {
   return (
     <Card className="mb-4">
       <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <Badge variant={configured ? 'success' : 'default'} className="mt-1">
-            {configured ? 'Configured' : 'Not configured'}
+            {configured ? 'Configured' : notConfiguredLabel}
           </Badge>
         </div>
         <Button variant="outline" onClick={() => onEdit(STEP_INDEX[stepId])} className="text-xs px-2 py-1">
@@ -145,6 +145,7 @@ export default function ReviewStep() {
             title="Parent"
             stepId="parent"
             configured={devfile.parent !== undefined}
+            notConfiguredLabel="Not used (optional)"
             onEdit={handleEdit}
           >
             {devfile.parent ? (
@@ -153,7 +154,7 @@ export default function ReviewStep() {
                 {devfile.parent.uri || devfile.parent.id || devfile.parent.kubernetes?.name}
               </p>
             ) : (
-              <p className="text-gray-500">No parent devfile</p>
+              <p className="text-gray-500">No parent devfile, the section is left out</p>
             )}
           </SummaryCard>
 

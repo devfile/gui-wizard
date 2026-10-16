@@ -10,6 +10,7 @@ import {
   getComponentType,
   getParentSourceType
 } from '../../utils/factories'
+import Badge from '../common/Badge'
 import CommandEditor from '../editors/CommandEditor'
 import ComponentEditor from '../editors/ComponentEditor'
 import ProjectEditor from '../editors/ProjectEditor'
@@ -25,6 +26,18 @@ import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
 const ISSUE_PREFIXES = ['Parent']
+
+const DOCS_URL = 'https://devfile.io/docs/2.3.0/referring-to-a-parent-devfile'
+const SCHEMA_DOCS_URL = 'https://devfile.io/docs/2.3.0/devfile-schema'
+
+/** Link to the devfile.io page describing the section edited here. */
+function DocsLink({ href, children }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+      {children}
+    </a>
+  )
+}
 
 const PROJECT_LISTS = [
   { kind: 'projects', title: 'Project overrides', prefix: 'parent-project', addButtonText: 'Add Project Override' },
@@ -68,14 +81,27 @@ export default function ParentStep() {
   if (!parent) {
     return (
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Parent</h2>
-        <p className="text-gray-600 mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-2xl font-bold text-gray-900">Parent</h2>
+          <Badge variant="default">Optional</Badge>
+        </div>
+        <p className="text-gray-600 mb-2">
           A devfile can inherit from a parent devfile and override parts of it. Everything defined here is merged on
-          top of the parent.
+          top of the parent. Most devfiles do not use a parent — skipping this step is perfectly normal and the{' '}
+          <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">parent</code> section is simply left out of the
+          generated devfile.
+        </p>
+        <p className="text-sm text-gray-500 mb-6">
+          See <DocsLink href={DOCS_URL}>Referring to a parent devfile</DocsLink> and the{' '}
+          <DocsLink href={SCHEMA_DOCS_URL}>devfile 2.3.0 schema</DocsLink>.
         </p>
 
         <div className="text-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <p className="text-gray-500 mb-4">This devfile does not inherit from a parent.</p>
+          <p className="text-gray-500 mb-1">This devfile does not inherit from a parent.</p>
+          <p className="text-gray-400 text-sm mb-4">
+            Leave it this way unless you are extending a stack from a registry, a devfile URI or a
+            DevWorkspaceTemplate.
+          </p>
           <Button variant="outline" onClick={() => setParent(createParent())}>
             Add Parent
           </Button>
@@ -105,14 +131,21 @@ export default function ParentStep() {
   return (
     <div>
       <div className="flex justify-between items-start mb-2">
-        <h2 className="text-2xl font-bold text-gray-900">Parent</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-gray-900">Parent</h2>
+          <Badge variant="default">Optional</Badge>
+        </div>
         <Button variant="danger" onClick={() => setParent(null)} className="text-xs px-2 py-1">
           Remove Parent
         </Button>
       </div>
-      <p className="text-gray-600 mb-6">
+      <p className="text-gray-600 mb-2">
         The parent devfile this one inherits from. Overrides below are merged on top of the parent content, so no
-        field is mandatory in them.
+        field is mandatory in them. Remove the parent to go back to a devfile without inheritance.
+      </p>
+      <p className="text-sm text-gray-500 mb-6">
+        See <DocsLink href={DOCS_URL}>Referring to a parent devfile</DocsLink> and the{' '}
+        <DocsLink href={SCHEMA_DOCS_URL}>devfile 2.3.0 schema</DocsLink>.
       </p>
 
       {/* A parent that was just added has no source yet, which the required
