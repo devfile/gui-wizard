@@ -16,6 +16,18 @@ metadata:
   website: https://devfile.io
 attributes:
   controller.devfile.io/storage-type: ephemeral
+  # The oauth-proxy sidecar authenticates against OpenShift as a service account
+  # OAuth client, so the workspace pod has to run as the ServiceAccount declared by
+  # the `oauth-proxy-sa` component instead of the one generated per workspace.
+  pod-overrides:
+    spec:
+      serviceAccountName: wizard-oauth
+variables:
+  # Namespace the workspace runs in. Used for the access check performed by
+  # oauth-proxy: only users who can `get pods` in this namespace are let through.
+  namespace: CHANGE_ME
+  # Seed for the session cookie: openssl rand -base64 32
+  cookie-secret: CHANGE_ME
 components:
   - name: nodejs-dev
     container:
@@ -23,15 +35,81 @@ components:
       mountSources: true
       sourceMapping: /projects
       endpoints:
+        # Not exposed directly: the dev server is only reachable through the
+        # oauth-proxy sidecar below. Set `exposure: public` to also get the
+        # usual unauthenticated (or gateway-authenticated) workspace URL back.
         - name: dev-server
           targetPort: 5173
           protocol: http
-          exposure: public
+          exposure: none
       env:
         - name: NODE_ENV
           value: development
       memoryLimit: 2Gi
       cpuLimit: 1000m
+  # OpenShift OAuth in front of the Vite dev server. The proxy shares the pod
+  # network with nodejs-dev, so it reaches Vite over 127.0.0.1 and Vite itself
+  # never has to listen on a routable address.
+  - name: oauth-proxy
+    container:
+      image: quay.io/openshift/origin-oauth-proxy:4.18
+      mountSources: false
+      command:
+        - /usr/bin/oauth-proxy
+      args:
+        - --provider=openshift
+        - --http-address=0.0.0.0:4180
+        - --https-address=
+        - --upstream=http://127.0.0.1:5173
+        - --openshift-service-account=wizard-oauth
+        - '--openshift-sar={"namespace":"{{namespace}}","resource":"pods","verb":"get"}'
+        - --cookie-secret={{cookie-secret}}
+        - --cookie-secure=true
+        - --pass-basic-auth=false
+        - --skip-provider-button=true
+      endpoints:
+        # `discoverable` makes the operator create a Service named after the
+        # endpoint, which gives the Route below a stable target to point at.
+        - name: wizard-oauth
+          targetPort: 4180
+          protocol: http
+          exposure: internal
+          attributes:
+            discoverable: true
+      memoryLimit: 256Mi
+      memoryRequest: 64Mi
+      cpuLimit: 200m
+      cpuRequest: 50m
+  - name: oauth-proxy-sa
+    openshift:
+      deployByDefault: true
+      inlined: |
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: wizard-oauth
+          annotations:
+            # Registers the Route below as a valid OAuth redirect target for this
+            # service account, so the callback URL does not have to be hardcoded.
+            serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"wizard-oauth"}}'
+  - name: oauth-proxy-route
+    openshift:
+      deployByDefault: true
+      inlined: |
+        apiVersion: route.openshift.io/v1
+        kind: Route
+        metadata:
+          name: wizard-oauth
+        spec:
+          to:
+            kind: Service
+            name: wizard-oauth
+            weight: 100
+          port:
+            targetPort: 4180
+          tls:
+            termination: edge
+            insecureEdgeTerminationPolicy: Redirect
   - name: node-modules
     volume:
       size: 1Gi
