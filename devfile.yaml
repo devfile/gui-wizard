@@ -16,12 +16,6 @@ metadata:
   website: https://devfile.io
 attributes:
   controller.devfile.io/storage-type: ephemeral
-  # The oauth-proxy sidecar authenticates against OpenShift as a service account
-  # OAuth client, so the workspace pod has to run as the ServiceAccount declared by
-  # the `oauth-proxy-sa` component instead of the one generated per workspace.
-  pod-overrides:
-    spec:
-      serviceAccountName: wizard-oauth
 variables:
   # Namespace the workspace runs in. Used for the access check performed by
   # oauth-proxy: only users who can `get pods` in this namespace are let through.
@@ -50,6 +44,30 @@ components:
   # OpenShift OAuth in front of the Vite dev server. The proxy shares the pod
   # network with nodejs-dev, so it reaches Vite over 127.0.0.1 and Vite itself
   # never has to listen on a routable address.
+  #
+  # One-time setup in the workspace namespace (see README section "OAuth-protected
+  # dev server"). The pod keeps the ServiceAccount the operator generates for it -
+  # the proxy authenticates as the `wizard-oauth` OAuth client using a token that
+  # is mounted into the workspace, so no pod ServiceAccount override (and no SCC
+  # grant) is needed:
+  #
+  #   oc create sa wizard-oauth
+  #   oc annotate sa wizard-oauth \
+  #     serviceaccounts.openshift.io/oauth-redirectreference.primary='{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"wizard-oauth"}}'
+  #   oc apply -f - <<'EOF'
+  #   apiVersion: v1
+  #   kind: Secret
+  #   metadata:
+  #     name: wizard-oauth-client
+  #     labels:
+  #       controller.devfile.io/mount-to-devworkspace: "true"
+  #       controller.devfile.io/watch-secret: "true"
+  #     annotations:
+  #       kubernetes.io/service-account.name: wizard-oauth
+  #       controller.devfile.io/mount-as: file
+  #       controller.devfile.io/mount-path: /var/run/oauth-client
+  #   type: kubernetes.io/service-account-token
+  #   EOF
   - name: oauth-proxy
     container:
       image: quay.io/openshift/origin-oauth-proxy:4.18
@@ -61,7 +79,14 @@ components:
         - --http-address=0.0.0.0:4180
         - --https-address=
         - --upstream=http://127.0.0.1:5173
-        - --openshift-service-account=wizard-oauth
+        # OAuth client is the wizard-oauth ServiceAccount; its token is automounted
+        # from the wizard-oauth-client secret created in the one-time setup above.
+        - --client-id=system:serviceaccount:{{namespace}}:wizard-oauth
+        - --client-secret-file=/var/run/oauth-client/token
+        - --openshift-ca=/etc/pki/tls/cert.pem
+        - --openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        # Access check, run with the end user's token: only users who can get pods
+        # in this namespace are let through.
         - '--openshift-sar={"namespace":"{{namespace}}","resource":"pods","verb":"get"}'
         - --cookie-secret={{cookie-secret}}
         - --cookie-secure=true
@@ -80,18 +105,6 @@ components:
       memoryRequest: 64Mi
       cpuLimit: 200m
       cpuRequest: 50m
-  - name: oauth-proxy-sa
-    openshift:
-      deployByDefault: true
-      inlined: |
-        apiVersion: v1
-        kind: ServiceAccount
-        metadata:
-          name: wizard-oauth
-          annotations:
-            # Registers the Route below as a valid OAuth redirect target for this
-            # service account, so the callback URL does not have to be hardcoded.
-            serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"wizard-oauth"}}'
   - name: oauth-proxy-route
     openshift:
       deployByDefault: true
