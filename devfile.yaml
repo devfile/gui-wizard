@@ -137,7 +137,9 @@ commands:
   - id: start-dev-server
     exec:
       component: nodejs-dev
-      commandLine: npm run dev
+      # Pinned to the IPv4 loopback: vite's default host is `localhost`, which Node
+      # may resolve to ::1 only, while the oauth-proxy sidecar dials 127.0.0.1.
+      commandLine: npm run dev -- --host 127.0.0.1
       workingDir: ${PROJECT_SOURCE}
       group:
         kind: run

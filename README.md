@@ -285,6 +285,12 @@ oc get route wizard-oauth -o jsonpath='{.spec.host}{"\n"}'
   so `--client-id` names a ServiceAccount that does not exist.
 - **403 after logging in** — expected when the user cannot `get pods` in the namespace. Adjust
   the `--openshift-sar` argument to match who should have access.
+- **502 with an empty page** — that is oauth-proxy failing to reach the upstream, not the
+  router (router errors come with an HTML page). Either the dev server is not running, so run
+  the `start-dev-server` command, or it is not on the loopback address the proxy dials. Check
+  with `oc logs <workspace-pod> -c oauth-proxy`, which logs the dial error. The
+  `start-dev-server` command passes `--host 127.0.0.1` for this reason: Vite's default host is
+  `localhost`, which Node may resolve to `::1` only.
 - Do not pre-create the `wizard-oauth` Route by hand: the operator refuses to adopt objects it
   does not own and the workspace will fail to start.
 - The ServiceAccount token is mounted into every workspace container, including `nodejs-dev`.
