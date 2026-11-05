@@ -17,11 +17,11 @@ metadata:
 attributes:
   controller.devfile.io/storage-type: ephemeral
 variables:
-  # Namespace the workspace runs in. Used for the access check performed by
+  # CHANGE_ME - Namespace the workspace runs in. Used for the access check performed by
   # oauth-proxy: only users who can `get pods` in this namespace are let through.
-  namespace: CHANGE_ME
-  # Seed for the session cookie: openssl rand -base64 32
-  cookie-secret: CHANGE_ME
+  namespace: ibuziuk-dev 
+  # CHANGE_ME - Seed for the session cookie: 'openssl rand -base64 32'
+  cookie-secret: k0uiU7MQGwKY4BqHa22cjOZsmfI2FZzO7SioUUtf4e0=
 components:
   - name: nodejs-dev
     container:
