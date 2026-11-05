@@ -16,6 +16,12 @@ metadata:
   website: https://devfile.io
 attributes:
   controller.devfile.io/storage-type: ephemeral
+variables:
+  # CHANGE_ME - Namespace the workspace runs in. Used for the access check performed by
+  # oauth-proxy: only users who can `get pods` in this namespace are let through.
+  namespace: ibuziuk-dev 
+  # CHANGE_ME - Seed for the session cookie: 'openssl rand -base64 32'
+  cookie-secret: k0uiU7MQGwKY4BqHa22cjOZsmfI2FZzO7SioUUtf4e0=
 components:
   - name: nodejs-dev
     container:
@@ -23,15 +29,100 @@ components:
       mountSources: true
       sourceMapping: /projects
       endpoints:
+        # Not exposed directly: the dev server is only reachable through the
+        # oauth-proxy sidecar below. Set `exposure: public` to also get the
+        # usual unauthenticated (or gateway-authenticated) workspace URL back.
         - name: dev-server
           targetPort: 5173
           protocol: http
-          exposure: public
+          exposure: none
       env:
         - name: NODE_ENV
           value: development
       memoryLimit: 2Gi
       cpuLimit: 1000m
+  # OpenShift OAuth in front of the Vite dev server. The proxy shares the pod
+  # network with nodejs-dev, so it reaches Vite over 127.0.0.1 and Vite itself
+  # never has to listen on a routable address.
+  #
+  # One-time setup in the workspace namespace (see README section "OAuth-protected
+  # dev server"). The pod keeps the ServiceAccount the operator generates for it -
+  # the proxy authenticates as the `wizard-oauth` OAuth client using a token that
+  # is mounted into the workspace, so no pod ServiceAccount override (and no SCC
+  # grant) is needed:
+  #
+  #   oc create sa wizard-oauth
+  #   oc annotate sa wizard-oauth \
+  #     serviceaccounts.openshift.io/oauth-redirectreference.primary='{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"wizard-oauth"}}'
+  #   oc apply -f - <<'EOF'
+  #   apiVersion: v1
+  #   kind: Secret
+  #   metadata:
+  #     name: wizard-oauth-client
+  #     labels:
+  #       controller.devfile.io/mount-to-devworkspace: "true"
+  #       controller.devfile.io/watch-secret: "true"
+  #     annotations:
+  #       kubernetes.io/service-account.name: wizard-oauth
+  #       controller.devfile.io/mount-as: file
+  #       controller.devfile.io/mount-path: /var/run/oauth-client
+  #   type: kubernetes.io/service-account-token
+  #   EOF
+  - name: oauth-proxy
+    container:
+      image: quay.io/openshift/origin-oauth-proxy:4.18
+      mountSources: false
+      command:
+        - /usr/bin/oauth-proxy
+      args:
+        - --provider=openshift
+        - --http-address=0.0.0.0:4180
+        - --https-address=
+        - --upstream=http://127.0.0.1:5173
+        # OAuth client is the wizard-oauth ServiceAccount; its token is automounted
+        # from the wizard-oauth-client secret created in the one-time setup above.
+        - --client-id=system:serviceaccount:{{namespace}}:wizard-oauth
+        - --client-secret-file=/var/run/oauth-client/token
+        - --openshift-ca=/etc/pki/tls/cert.pem
+        - --openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        # Access check, run with the end user's token: only users who can get pods
+        # in this namespace are let through.
+        - '--openshift-sar={"namespace":"{{namespace}}","resource":"pods","verb":"get"}'
+        - --cookie-secret={{cookie-secret}}
+        - --cookie-secure=true
+        - --pass-basic-auth=false
+        - --skip-provider-button=true
+      endpoints:
+        # `discoverable` makes the operator create a Service named after the
+        # endpoint, which gives the Route below a stable target to point at.
+        - name: wizard-oauth
+          targetPort: 4180
+          protocol: http
+          exposure: internal
+          attributes:
+            discoverable: true
+      memoryLimit: 256Mi
+      memoryRequest: 64Mi
+      cpuLimit: 200m
+      cpuRequest: 50m
+  - name: oauth-proxy-route
+    openshift:
+      deployByDefault: true
+      inlined: |
+        apiVersion: route.openshift.io/v1
+        kind: Route
+        metadata:
+          name: wizard-oauth
+        spec:
+          to:
+            kind: Service
+            name: wizard-oauth
+            weight: 100
+          port:
+            targetPort: 4180
+          tls:
+            termination: edge
+            insecureEdgeTerminationPolicy: Redirect
   - name: node-modules
     volume:
       size: 1Gi
@@ -46,7 +137,9 @@ commands:
   - id: start-dev-server
     exec:
       component: nodejs-dev
-      commandLine: npm run dev
+      # Pinned to the IPv4 loopback: vite's default host is `localhost`, which Node
+      # may resolve to ::1 only, while the oauth-proxy sidecar dials 127.0.0.1.
+      commandLine: npm run dev -- --host 127.0.0.1
       workingDir: ${PROJECT_SOURCE}
       group:
         kind: run
