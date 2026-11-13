@@ -4,6 +4,7 @@ import ProjectEditor from '../editors/ProjectEditor'
 import ArrayFieldManager from '../forms/ArrayFieldManager'
 import CollapsibleSection from '../forms/CollapsibleSection'
 import Alert from '../common/Alert'
+import StepHeading from '../wizard/StepHeading'
 import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
@@ -36,7 +37,7 @@ export default function ProjectsStep() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Projects</h2>
+      <StepHeading stepId="projects" />
       <p className="text-gray-600 mb-4">
         Source code cloned into the workspace. A devfile can declare the projects it works on, the starter projects a
         new workspace can be bootstrapped from, and the dependent projects cloned alongside them.

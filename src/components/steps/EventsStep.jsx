@@ -3,6 +3,7 @@ import { EVENT_TYPES } from '../../utils/constants'
 import { getCommandType } from '../../utils/factories'
 import Button from '../common/Button'
 import FormSection from '../forms/FormSection'
+import StepHeading from '../wizard/StepHeading'
 import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
@@ -107,7 +108,7 @@ export default function EventsStep() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Events</h2>
+      <StepHeading stepId="events" />
       <p className="text-gray-600 mb-6">
         Bind commands to the workspace lifecycle. Commands bound to an event run in the order listed below.
       </p>

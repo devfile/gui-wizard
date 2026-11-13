@@ -3,6 +3,7 @@ import { createCommand, getCommandType, getComponentType } from '../../utils/fac
 import CommandEditor from '../editors/CommandEditor'
 import ArrayFieldManager from '../forms/ArrayFieldManager'
 import Alert from '../common/Alert'
+import StepHeading from '../wizard/StepHeading'
 import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
@@ -21,7 +22,7 @@ export default function CommandsStep() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Commands</h2>
+      <StepHeading stepId="commands" />
       <p className="text-gray-600 mb-6">
         Commands run inside the workspace: <strong>exec</strong> runs a command line in a container,{' '}
         <strong>apply</strong> deploys a component, and <strong>composite</strong> chains other commands.
