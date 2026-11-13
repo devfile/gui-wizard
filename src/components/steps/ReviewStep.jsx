@@ -9,6 +9,7 @@ import Badge from '../common/Badge'
 import Button from '../common/Button'
 import Card from '../common/Card'
 import YamlPreview from '../preview/YamlPreview'
+import StepHeading from '../wizard/StepHeading'
 
 const STEP_INDEX = Object.fromEntries(WIZARD_STEPS.map((step, index) => [step.id, index]))
 
@@ -72,7 +73,7 @@ export default function ReviewStep() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Review &amp; Download</h2>
+      <StepHeading stepId="review" />
       <p className="text-gray-600 mb-6">
         Review the devfile and download it. Errors must be fixed before downloading, warnings are advisory.
       </p>

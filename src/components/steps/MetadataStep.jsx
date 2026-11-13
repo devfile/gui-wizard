@@ -12,6 +12,7 @@ import FormInput from '../forms/FormInput'
 import FormSection from '../forms/FormSection'
 import FormTextarea from '../forms/FormTextarea'
 import StringListManager from '../forms/StringListManager'
+import StepHeading from '../wizard/StepHeading'
 import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
@@ -28,7 +29,7 @@ export default function MetadataStep() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Basic Information</h2>
+      <StepHeading stepId="metadata" />
       <p className="text-gray-600 mb-6">
         Metadata describing the devfile. Everything is optional for the schema, but a name is needed to identify the
         workspace.

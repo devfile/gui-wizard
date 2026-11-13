@@ -2,6 +2,7 @@ import { useSectionList } from '../../hooks/useWizardState'
 import { createComponent, getComponentType } from '../../utils/factories'
 import ComponentEditor from '../editors/ComponentEditor'
 import ArrayFieldManager from '../forms/ArrayFieldManager'
+import StepHeading from '../wizard/StepHeading'
 import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
@@ -17,7 +18,7 @@ export default function ComponentsStep() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Components</h2>
+      <StepHeading stepId="components" />
       <p className="text-gray-600 mb-6">
         The containers, volumes, Kubernetes or OpenShift resources and image builds that make up the development
         environment.

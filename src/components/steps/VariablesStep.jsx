@@ -1,6 +1,7 @@
 import { useWizard } from '../../hooks/useWizardState'
 import MapFieldManager from '../forms/MapFieldManager'
 import Alert from '../common/Alert'
+import StepHeading from '../wizard/StepHeading'
 import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
@@ -12,7 +13,7 @@ export default function VariablesStep() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Variables</h2>
+      <StepHeading stepId="variables" />
       <p className="text-gray-600 mb-4">
         Values referenced elsewhere in the devfile with the{' '}
         <code className="bg-gray-100 px-2 py-1 rounded text-sm">{'{{variable-name}}'}</code> syntax.

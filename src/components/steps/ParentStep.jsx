@@ -10,7 +10,6 @@ import {
   getComponentType,
   getParentSourceType
 } from '../../utils/factories'
-import Badge from '../common/Badge'
 import CommandEditor from '../editors/CommandEditor'
 import ComponentEditor from '../editors/ComponentEditor'
 import ProjectEditor from '../editors/ProjectEditor'
@@ -22,6 +21,7 @@ import FormSelect from '../forms/FormSelect'
 import MapFieldManager from '../forms/MapFieldManager'
 import Alert from '../common/Alert'
 import Button from '../common/Button'
+import StepHeading from '../wizard/StepHeading'
 import StepIssues from '../wizard/StepIssues'
 import WizardNavigation from '../wizard/WizardNavigation'
 
@@ -81,10 +81,7 @@ export default function ParentStep() {
   if (!parent) {
     return (
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-2xl font-bold text-gray-900">Parent</h2>
-          <Badge variant="default">Optional</Badge>
-        </div>
+        <StepHeading stepId="parent" />
         <p className="text-gray-600 mb-2">
           A devfile can inherit from a parent devfile and override parts of it. Everything defined here is merged on
           top of the parent. Most devfiles do not use a parent — skipping this step is perfectly normal and the{' '}
@@ -130,15 +127,14 @@ export default function ParentStep() {
 
   return (
     <div>
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-bold text-gray-900">Parent</h2>
-          <Badge variant="default">Optional</Badge>
-        </div>
-        <Button variant="danger" onClick={() => setParent(null)} className="text-xs px-2 py-1">
-          Remove Parent
-        </Button>
-      </div>
+      <StepHeading
+        stepId="parent"
+        actions={
+          <Button variant="danger" onClick={() => setParent(null)} className="text-xs px-2 py-1">
+            Remove Parent
+          </Button>
+        }
+      />
       <p className="text-gray-600 mb-2">
         The parent devfile this one inherits from. Overrides below are merged on top of the parent content, so no
         field is mandatory in them. Remove the parent to go back to a devfile without inheritance.
